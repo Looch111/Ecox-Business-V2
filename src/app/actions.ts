@@ -104,15 +104,23 @@ export async function addFundsToAccount(uid: string, amount: number) {
 
 export async function verifyFlutterwaveTransaction(
   transaction_id: string,
-  expectedAmount: number,
-  uid: string
+  tx_ref: string
 ): Promise<{ success: boolean; amount?: number; message?: string }> {
-  if (!transaction_id || !uid) {
+  if (!transaction_id || !tx_ref) {
     return {
       success: false,
-      message: "Transaction ID and User ID are required for verification.",
+      message: "Transaction ID and reference are required for verification.",
     };
   }
+  
+  const uid = tx_ref.split("-")[2];
+  if (!uid) {
+    return {
+      success: false,
+      message: "Could not extract user ID from transaction reference.",
+    };
+  }
+
 
   try {
     const response = await fetch(
@@ -129,21 +137,21 @@ export async function verifyFlutterwaveTransaction(
     if (
       data.status === "success" &&
       data.data?.status === "successful" &&
-      data.data?.amount >= expectedAmount
+      data.data?.tx_ref === tx_ref
     ) {
       await addFundsToAccount(uid, data.data.amount);
       return { success: true, amount: data.data.amount };
     } else {
       return {
         success: false,
-        message: data.message || "Transaction verification failed.",
+        message: data.message || "Transaction verification failed with Flutterwave.",
       };
     }
   } catch (error: any) {
     console.error("Flutterwave verification error:", error);
     return {
       success: false,
-      message: error.message || "Could not verify payment with Flutterwave.",
+      message: error.message || "An internal error occurred during verification.",
     };
   }
 }

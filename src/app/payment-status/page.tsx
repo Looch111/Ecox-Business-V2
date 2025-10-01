@@ -30,6 +30,17 @@ function PaymentStatusContent() {
     const paymentStatus = searchParams.get("status");
 
     const verifyPayment = async () => {
+      if (paymentStatus === "cancelled") {
+        setStatus("failed");
+        setMessage("Your payment was cancelled.");
+        toast({
+          variant: "destructive",
+          title: "Payment Cancelled",
+          description: "The payment process was not completed.",
+        });
+        return;
+      }
+      
       if (
         (paymentStatus !== "successful" && paymentStatus !== "completed") ||
         !transaction_id ||
@@ -43,18 +54,9 @@ function PaymentStatusContent() {
       }
 
       try {
-        const uid = tx_ref.split("-")[2];
-        const amount = Number(localStorage.getItem(`tx_amount_${tx_ref}`) || "0");
-        localStorage.removeItem(`tx_amount_${tx_ref}`);
-
-        if (!uid || amount === 0) {
-            throw new Error("Could not retrieve transaction details. Please contact support.");
-        }
-
         const result = await verifyFlutterwaveTransaction(
           transaction_id,
-          amount,
-          uid
+          tx_ref
         );
 
         if (result.success) {

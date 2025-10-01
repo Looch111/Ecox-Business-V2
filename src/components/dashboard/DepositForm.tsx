@@ -80,25 +80,18 @@ export default function DepositForm({
 
   async function onSubmit(values: DepositFormValues) {
     setIsSubmitting(true);
-    localStorage.setItem(`tx_amount_${tx_ref}`, String(values.amount));
     
     handleFlutterwavePayment({
       callback: (response) => {
+        // The redirect_url will handle the verification.
+        // We just close the modal here.
         closePaymentModal(); 
         setIsSubmitting(false);
-        onShowStatus(); 
-        
-        if (response.status !== "successful" && response.status !== "completed") {
-            toast({
-                variant: "destructive",
-                title: "Payment Not Completed",
-                description: "Your payment was not completed successfully.",
-            });
-        }
       },
       onClose: () => {
         setIsSubmitting(false);
-        onShowStatus();
+        // Don't automatically go back, let the user decide.
+        // Maybe they closed it by accident.
       },
     });
   }

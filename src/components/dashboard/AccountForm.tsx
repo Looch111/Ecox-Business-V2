@@ -91,7 +91,7 @@ export default function AccountForm({ user }: AccountFormProps) {
   const paymentAmount = additionalFollowers * NAIRA_PER_FOLLOWER;
 
   const flutterwaveConfig = {
-    public_key: process.env.NEXT_PUBLIC_FLUTTERWAVE_PUBLIC_KEY || "FLWPUBK_TEST-b51f89312c8b7c3d7e5e3b5e4a8a8c9c-X", // Default to test key
+    public_key: process.env.NEXT_PUBLIC_FLUTTERWAVE_PUBLIC_KEY || "FLWPUBK_TEST-9972db282f658db461af332dd2e2ca37-X", // Default to test key
     tx_ref: `ecox-${Date.now()}-${user.uid}`,
     amount: paymentAmount,
     currency: "NGN",

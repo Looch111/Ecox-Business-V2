@@ -88,11 +88,10 @@ export async function getInitialFollowers(
     }
 
     const data = await response.json();
-    if (!data.success) {
-      throw new Error(`API error fetching followers: ${JSON.stringify(data)}`);
-    }
-
+    
+    // The total is a top-level property in the response
     return { count: data.total ?? 0 };
+
   } catch (error) {
     console.error("Error fetching initial followers:", error);
     throw new Error("Could not retrieve initial follower count.");

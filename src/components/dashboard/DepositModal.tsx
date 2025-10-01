@@ -61,7 +61,7 @@ export default function DepositModal({
   const amount = form.watch("amount");
 
   const flutterwaveConfig = {
-    public_key: process.env.NEXT_PUBLIC_FLUTTERWAVE_PUBLIC_KEY || "FLWPUBK_TEST-9972db282f658db461af332dd2e2ca37-X",
+    public_key: "FLWPUBK_TEST-9972db282f658db461af332dd2e2ca37-X",
     tx_ref: `ecox-deposit-${user.uid}-${Date.now()}`,
     amount,
     currency: "NGN",
@@ -73,7 +73,7 @@ export default function DepositModal({
     customizations: {
       title: "Ecox User Hub Deposit",
       description: "Fund your Ecox account balance.",
-      logo: "https://www.ecox.network/logo.png",
+      logo: "https://i.imgur.com/h52p32L.png",
     },
   };
 

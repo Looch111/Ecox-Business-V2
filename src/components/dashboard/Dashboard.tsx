@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import type { User } from "firebase/auth";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { collection, query, where, onSnapshot, DocumentData } from "firebase/firestore";
 import { db, auth, signOut } from "@/lib/firebase";
 import AccountForm from "./AccountForm";
-import SubmittedView from "./SubmittedView";
+import AccountView from "./AccountView";
 import { Loader2, LogOut } from "lucide-react";
 import { Button } from "../ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -19,7 +19,7 @@ interface DashboardProps {
 type OnboardingStep = "instructions" | "account_form";
 
 export default function Dashboard({ user }: DashboardProps) {
-  const [hasAccount, setHasAccount] = useState(false);
+  const [account, setAccount] = useState<DocumentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [onboardingStep, setOnboardingStep] =
     useState<OnboardingStep>("instructions");
@@ -36,15 +36,22 @@ export default function Dashboard({ user }: DashboardProps) {
       if (hasAgreed) {
         setOnboardingStep("account_form");
       }
+      setLoading(false); 
     };
-    
-    checkAgreement();
 
     const q = query(collection(db, "accounts"), where("uid", "==", user.uid));
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        setHasAccount(!snapshot.empty);
+        if (!snapshot.empty) {
+          const accountData = snapshot.docs[0].data();
+          accountData.id = snapshot.docs[0].id;
+          setAccount(accountData);
+        } else {
+          setAccount(null);
+          // Only check agreement if there's no account yet
+          checkAgreement();
+        }
         setLoading(false);
       },
       (error) => {
@@ -394,8 +401,8 @@ export default function Dashboard({ user }: DashboardProps) {
           <div className="flex items-center justify-center h-64">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        ) : hasAccount ? (
-          <SubmittedView />
+        ) : account ? (
+          <AccountView account={account} user={user} />
         ) : (
           renderOnboarding()
         )}

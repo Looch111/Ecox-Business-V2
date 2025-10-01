@@ -13,6 +13,8 @@ import {
   getDoc,
   serverTimestamp,
   setDoc,
+  updateDoc,
+  increment,
 } from "firebase/firestore";
 
 const accountSchema = z.object({
@@ -49,12 +51,38 @@ export async function addAccount(data: z.infer<typeof accountSchema>) {
       followerTarget,
       enableFollowBackGoal,
       initialFollowers,
+      balance: 0, // Initialize balance
       createdAt: serverTimestamp(),
     });
     return { success: true };
   } catch (error: any) {
     console.error("Failed to add account:", error);
     throw new Error("Failed to save account to database.");
+  }
+}
+
+const addFundsSchema = z.object({
+  accountId: z.string(),
+  amount: z.number().positive("Amount must be positive."),
+});
+
+export async function addFundsToAccount(data: z.infer<typeof addFundsSchema>) {
+  const validatedData = addFundsSchema.safeParse(data);
+  if (!validatedData.success) {
+    throw new Error("Invalid data for adding funds.");
+  }
+
+  const { accountId, amount } = validatedData.data;
+
+  try {
+    const accountRef = doc(db, "accounts", accountId);
+    await updateDoc(accountRef, {
+      balance: increment(amount),
+    });
+    return { success: true };
+  } catch (error: any) {
+    console.error("Failed to add funds:", error);
+    throw new Error("Could not update account balance.");
   }
 }
 
@@ -92,8 +120,6 @@ export async function getInitialFollowers(
     }
 
     const data = await response.json();
-
-    // The total is a top-level property in the response
     return { count: data.total ?? 0 };
   } catch (error: any) {
     console.error("Error fetching initial followers:", error);
@@ -129,7 +155,6 @@ export async function hasAgreedToTerms(
     return { hasAgreed: userDoc.exists() && userDoc.data().hasAgreedToTerms === true };
   } catch (error) {
     console.error("Failed to check user terms agreement:", error);
-    // Default to not agreed on error to be safe
     return { hasAgreed: false };
   }
 }

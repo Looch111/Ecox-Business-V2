@@ -37,10 +37,6 @@ const accountFormSchema = z.object({
   bearerToken: z.string().min(10, {
     message: "Please enter a valid bearer token.",
   }),
-  desiredFollowers: z.coerce
-    .number()
-    .min(0, { message: "Must be a positive number." })
-    .default(0),
   targets: z.string().optional(),
   followerTarget: z.coerce
     .number()
@@ -65,7 +61,6 @@ export default function AccountForm({ user }: AccountFormProps) {
     defaultValues: {
       name: "",
       bearerToken: "",
-      desiredFollowers: 0,
       targets: "",
       followerTarget: 1,
       enableFollowBackGoal: true,
@@ -113,6 +108,7 @@ export default function AccountForm({ user }: AccountFormProps) {
     try {
       await addAccount({
         ...values,
+        desiredFollowers: 0, // Keep for backend compatibility, but not in form
         uid: user.uid,
       });
       toast({
@@ -170,19 +166,6 @@ export default function AccountForm({ user }: AccountFormProps) {
                   <FormDescription>
                     Your token is stored securely and is never shared.
                   </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="desiredFollowers"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Desired Followers</FormLabel>
-                  <FormControl>
-                    <Input type="number" placeholder="0" {...field} />
-                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

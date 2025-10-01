@@ -29,6 +29,7 @@ import { Loader2 } from "lucide-react";
 import { addAccount, getInitialFollowers } from "@/app/actions";
 import { Switch } from "../ui/switch";
 import { useFlutterwave, closePaymentModal } from "flutterwave-react-v3";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const accountFormSchema = z.object({
   name: z.string().min(2, {
@@ -62,6 +63,8 @@ export default function AccountForm({ user }: AccountFormProps) {
   const [isFetchingFollowers, setIsFetchingFollowers] = useState(false);
   const [paymentSuccessful, setPaymentSuccessful] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const form = useForm<AccountFormValues>({
     resolver: zodResolver(accountFormSchema),
@@ -87,6 +90,18 @@ export default function AccountForm({ user }: AccountFormProps) {
     control: form.control,
     name: "additionalFollowers",
   });
+
+  useEffect(() => {
+    if (searchParams.get("payment") === "successful") {
+      setPaymentSuccessful(true);
+      toast({
+        title: "Payment Confirmed!",
+        description: "You can now submit your account details.",
+      });
+      // Clean the URL
+      router.replace("/");
+    }
+  }, [searchParams, router, toast]);
 
   const paymentAmount = Number(additionalFollowers) * NAIRA_PER_FOLLOWER;
 
@@ -283,12 +298,7 @@ export default function AccountForm({ user }: AccountFormProps) {
                 handleFlutterwavePayment({
                   callback: (response) => {
                     if (response.status === "successful") {
-                      setPaymentSuccessful(true);
-                      toast({
-                        title: "Payment Successful!",
-                        description:
-                          "You can now submit your account details.",
-                      });
+                      router.push('/payment-successful');
                     } else {
                       toast({
                         variant: "destructive",

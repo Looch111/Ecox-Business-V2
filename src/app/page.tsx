@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import AuthForm from "@/components/auth/AuthForm";
 import Dashboard from "@/components/dashboard/Dashboard";
 import { Loader2 } from "lucide-react";
 
-export default function Home() {
+function HomePageContent() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -37,5 +37,13 @@ export default function Home() {
         <Dashboard user={user} />
       )}
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense>
+      <HomePageContent />
+    </Suspense>
   );
 }

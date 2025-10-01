@@ -4,17 +4,20 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Loader2, User, Target, Hash } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader2, User, Target, Hash, PlusCircle } from "lucide-react";
 import { DocumentData } from "firebase/firestore";
 
 interface AccountStatusProps {
   account: DocumentData;
+  onAddNew: () => void;
 }
 
-export default function AccountStatus({ account }: AccountStatusProps) {
+export default function AccountStatus({ account, onAddNew }: AccountStatusProps) {
   return (
     <div className="flex items-start justify-center pt-10 animate-fade-in-up">
       <Card className="w-full max-w-2xl shadow-lg border">
@@ -57,9 +60,15 @@ export default function AccountStatus({ account }: AccountStatusProps) {
           </div>
           <p className="text-xs text-muted-foreground text-center pt-4">
             No further action is needed from you at this time. This status will
-            update automatically once the process is complete.
+            update automatically. Submitting another account will overwrite this one.
           </p>
         </CardContent>
+        <CardFooter>
+          <Button onClick={onAddNew} className="w-full">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Submit Another Account
+          </Button>
+        </CardFooter>
       </Card>
     </div>
   );

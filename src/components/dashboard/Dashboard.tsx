@@ -11,7 +11,6 @@ import { useToast } from "@/hooks/use-toast";
 import Instructions from "./Instructions";
 import { hasAgreedToTerms } from "@/app/actions";
 import DepositForm from "./DepositForm";
-import { useFlutterwave } from "flutterwave-react-v3";
 import AccountStatus from "./AccountStatus";
 
 interface DashboardProps {
@@ -19,8 +18,7 @@ interface DashboardProps {
 }
 
 type OnboardingStep = "instructions" | "account_form";
-type MainView = "onboarding" | "form" | "deposit";
-
+type MainView = "onboarding" | "form" | "deposit" | "status";
 
 export default function Dashboard({ user }: DashboardProps) {
   const [account, setAccount] = useState<DocumentData | null>(null);
@@ -38,24 +36,17 @@ export default function Dashboard({ user }: DashboardProps) {
       return;
     }
 
-    const checkAgreement = async () => {
-      const { hasAgreed } = await hasAgreedToTerms(user.uid);
-      if (hasAgreed) {
-        setOnboardingStep("account_form");
-        setMainView("form");
-      }
-      setLoading(false); 
-    };
-
     const userDocRef = doc(db, "users", user.uid);
     const unsubscribeUser = onSnapshot(userDocRef, (doc) => {
       if (doc.exists()) {
-        setUserProfile(doc.data());
-        if (doc.data().hasAgreedToTerms) {
+        const userData = doc.data();
+        setUserProfile(userData);
+        if (userData.hasAgreedToTerms && mainView !== 'deposit' && mainView !== 'status') {
           setMainView("form");
         }
       } else {
         setUserProfile({ balance: 0, hasAgreedToTerms: false });
+        setMainView("onboarding");
       }
     });
 
@@ -67,11 +58,14 @@ export default function Dashboard({ user }: DashboardProps) {
           const accountData = snapshot.docs[0].data();
           accountData.id = snapshot.docs[0].id;
           setAccount(accountData);
+          if (mainView !== 'deposit') {
+             setMainView("status");
+          }
         } else {
           setAccount(null);
-          if (!userProfile?.hasAgreedToTerms) {
-             checkAgreement();
-          }
+           if (userProfile?.hasAgreedToTerms && mainView !== 'deposit') {
+             setMainView("form");
+           }
         }
         setLoading(false);
       },
@@ -90,7 +84,7 @@ export default function Dashboard({ user }: DashboardProps) {
       unsubscribeUser();
       unsubscribeAccounts();
     };
-  }, [user, toast, userProfile?.hasAgreedToTerms]);
+  }, [user, toast, mainView, userProfile?.hasAgreedToTerms]);
 
   const handleLogout = async () => {
     try {
@@ -108,24 +102,7 @@ export default function Dashboard({ user }: DashboardProps) {
     }
   };
 
-  const renderOnboarding = () => {
-    switch (onboardingStep) {
-      case "instructions":
-        return (
-          <Instructions
-            user={user}
-            onNext={() => {
-              setOnboardingStep("account_form");
-              setMainView("form");
-            }}
-          />
-        );
-      case "account_form":
-        return <AccountForm user={user} balance={userProfile?.balance || 0} />;
-    }
-  };
-
-  const renderMainView = () => {
+  const renderContent = () => {
     if (loading) {
        return (
           <div className="flex items-center justify-center h-64">
@@ -133,16 +110,30 @@ export default function Dashboard({ user }: DashboardProps) {
           </div>
         );
     }
-
-    if(mainView === 'deposit') {
-      return <DepositForm user={user} onShowForm={() => setMainView('form')} />;
-    }
-
-    if (account) {
-       return <AccountStatus account={account} />;
-    }
     
-    return renderOnboarding();
+    switch (mainView) {
+      case 'deposit':
+        return <DepositForm user={user} onShowForm={() => setMainView(account ? 'status' : 'form')} />;
+      case 'status':
+         if (account) {
+            return <AccountStatus account={account} onAddNew={() => setMainView('form')} />;
+         }
+         // Fallback to form if status is set but no account found
+         setMainView('form'); 
+         return <AccountForm user={user} balance={userProfile?.balance || 0} />;
+      case 'form':
+        return <AccountForm user={user} balance={userProfile?.balance || 0} />;
+      case 'onboarding':
+      default:
+        return (
+          <Instructions
+            user={user}
+            onNext={() => {
+              setMainView("form");
+            }}
+          />
+        );
+    }
   }
   
   const balance = userProfile?.balance ?? 0;
@@ -151,6 +142,17 @@ export default function Dashboard({ user }: DashboardProps) {
     currency: "NGN",
   }).format(balance);
 
+  const handleDepositClick = () => {
+     if(userProfile?.hasAgreedToTerms){
+       setMainView('deposit');
+     } else {
+        toast({
+          variant: "destructive",
+          title: "Terms Not Agreed",
+          description: "Please agree to the terms on the main screen before depositing funds.",
+        });
+     }
+  }
 
   return (
     <>
@@ -449,7 +451,7 @@ export default function Dashboard({ user }: DashboardProps) {
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => setMainView('deposit')}
+            onClick={handleDepositClick}
           >
             Deposit
           </Button>
@@ -464,7 +466,7 @@ export default function Dashboard({ user }: DashboardProps) {
       </header>
 
       <main className="flex-grow">
-        {renderMainView()}
+        {renderContent()}
       </main>
 
       <footer className="text-center py-4 text-sm text-muted-foreground mt-8">

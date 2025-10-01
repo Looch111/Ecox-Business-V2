@@ -61,7 +61,7 @@ export default function DepositModal({
   const amount = form.watch("amount");
 
   const flutterwaveConfig = {
-    public_key: process.env.NEXT_PUBLIC_FLUTTERWAVE_PUBLIC_KEY || "FLWPUBK_TEST-b034a179555c853e2646602521c05d76-X",
+    public_key: process.env.NEXT_PUBLIC_FLUTTERWAVE_PUBLIC_KEY || "FLWPUBK_TEST-9972db282f658db461af332dd2e2ca37-X",
     tx_ref: `ecox-deposit-${user.uid}-${Date.now()}`,
     amount,
     currency: "NGN",

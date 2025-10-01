@@ -28,8 +28,6 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { addAccount, getInitialFollowers } from "@/app/actions";
 import { Switch } from "../ui/switch";
-import { useFlutterwave, closePaymentModal } from "flutterwave-react-v3";
-import { useRouter, useSearchParams } from "next/navigation";
 
 const accountFormSchema = z.object({
   name: z.string().min(2, {
@@ -38,14 +36,9 @@ const accountFormSchema = z.object({
   bearerToken: z.string().min(10, {
     message: "Please enter a valid bearer token.",
   }),
-  additionalFollowers: z.coerce
-    .number()
-    .min(0, { message: "Must be a positive number" })
-    .default(1),
   followerTarget: z.coerce
     .number()
-    .min(0, { message: "Must be a positive number" })
-    .default(1),
+    .min(1, { message: "Target must be at least 1." }),
   enableFollowBackGoal: z.boolean().default(true),
   initialFollowers: z.number().min(0).default(0),
 });
@@ -56,22 +49,16 @@ interface AccountFormProps {
   user: User;
 }
 
-const NAIRA_PER_FOLLOWER = 2.6;
-
 export default function AccountForm({ user }: AccountFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFetchingFollowers, setIsFetchingFollowers] = useState(false);
-  const [paymentSuccessful, setPaymentSuccessful] = useState(false);
   const { toast } = useToast();
-  const router = useRouter();
-  const searchParams = useSearchParams();
 
   const form = useForm<AccountFormValues>({
     resolver: zodResolver(accountFormSchema),
     defaultValues: {
       name: "",
       bearerToken: "",
-      additionalFollowers: 1,
       followerTarget: 1,
       enableFollowBackGoal: true,
       initialFollowers: 0,
@@ -82,54 +69,6 @@ export default function AccountForm({ user }: AccountFormProps) {
     control: form.control,
     name: "bearerToken",
   });
-  const initialFollowers = useWatch({
-    control: form.control,
-    name: "initialFollowers",
-  });
-  const additionalFollowers = useWatch({
-    control: form.control,
-    name: "additionalFollowers",
-  });
-
-  useEffect(() => {
-    if (searchParams.get("status") === "successful" && !paymentSuccessful) {
-      setPaymentSuccessful(true);
-      toast({
-        title: "Payment Confirmed!",
-        description: "You can now submit your account details.",
-      });
-      // It's better to clean the URL to avoid re-triggering this on refresh
-      router.replace("/");
-    }
-  }, [searchParams, router, toast, paymentSuccessful]);
-
-  const paymentAmount = Number(additionalFollowers) * NAIRA_PER_FOLLOWER;
-
-  const flutterwaveConfig = {
-    public_key: "FLWPUBK_TEST-9972db282f658db461af332dd2e2ca37-X",
-    tx_ref: `ecox-${Date.now()}-${user.uid}`,
-    amount: paymentAmount,
-    currency: "NGN",
-    payment_options: "card,mobilemoney,ussd",
-    redirect_url: `${window.location.origin}/?payment=complete`,
-    customer: {
-      email: user.email!,
-      name: form.getValues("name") || "Ecox User",
-    },
-    customizations: {
-      title: "Ecox Follower Growth",
-      description: `Payment for ${additionalFollowers} additional followers`,
-      logo: "https://i.imgur.com/ofWHc95.png",
-    },
-  };
-
-  const handleFlutterwavePayment = useFlutterwave(flutterwaveConfig);
-
-  useEffect(() => {
-    const newFollowerTarget =
-      Number(initialFollowers || 0) + Number(additionalFollowers || 0);
-    form.setValue("followerTarget", newFollowerTarget);
-  }, [initialFollowers, additionalFollowers, form]);
 
   useEffect(() => {
     const fetchFollowers = async () => {
@@ -162,14 +101,19 @@ export default function AccountForm({ user }: AccountFormProps) {
   async function onSubmit(values: AccountFormValues) {
     setIsSubmitting(true);
     try {
+      const followerTarget =
+        Number(values.initialFollowers) + Number(values.followerTarget);
+
       await addAccount({
         ...values,
         uid: user.uid,
+        followerTarget: followerTarget,
       });
       toast({
         title: "Account Submitted!",
         description: "Your account details have been saved successfully.",
       });
+      form.reset();
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -186,7 +130,7 @@ export default function AccountForm({ user }: AccountFormProps) {
       <CardHeader>
         <CardTitle>Add Your Account</CardTitle>
         <CardDescription>
-          Fill in your account details, complete payment, and then submit.
+          Fill in your account details to get started.
         </CardDescription>
       </CardHeader>
       <Form {...form}>
@@ -233,17 +177,17 @@ export default function AccountForm({ user }: AccountFormProps) {
 
             <FormField
               control={form.control}
-              name="additionalFollowers"
+              name="followerTarget"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Additional Followers Target</FormLabel>
+                  <FormLabel>Follower Growth Target</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="1" {...field} />
+                    <Input type="number" placeholder="100" {...field} />
                   </FormControl>
                   <FormDescription>
-                    Your current follower count is {initialFollowers}. Your new
-                    target will be {form.getValues("followerTarget")}. Amount: ₦
-                    {paymentAmount.toFixed(2)}
+                    Enter the number of new followers you want to gain. Your
+                    current follower count is{" "}
+                    {form.getValues("initialFollowers")}.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -275,48 +219,8 @@ export default function AccountForm({ user }: AccountFormProps) {
               )}
             />
           </CardContent>
-          <CardFooter className="flex-col sm:flex-row gap-4">
-            <Button
-              type="button"
-              className="w-full sm:w-auto"
-              onClick={() => {
-                if (!form.getValues("name")) {
-                  toast({
-                    variant: "destructive",
-                    title: "Missing Information",
-                    description: "Please enter your Account Name before paying.",
-                  });
-                  return;
-                }
-                 if (paymentAmount <= 0) {
-                  toast({
-                    variant: "destructive",
-                    title: "Invalid Amount",
-                    description: "Number of additional followers must be greater than 0.",
-                  });
-                  return;
-                }
-                handleFlutterwavePayment({
-                  callback: (response) => {
-                     // This callback is executed when the user is redirected back to the app.
-                     // The logic is now handled by the useEffect hook that checks URL params.
-                    closePaymentModal(); // close the modal immediately
-                  },
-                  onClose: () => {
-                     // This function is called when the user closes the payment modal
-                     // without completing the payment. We can optionally show a message.
-                  },
-                });
-              }}
-              disabled={paymentSuccessful || isSubmitting}
-            >
-              Pay ₦{paymentAmount.toFixed(2)} with Flutterwave
-            </Button>
-            <Button
-              type="submit"
-              className="w-full sm:w-auto"
-              disabled={isSubmitting || !paymentSuccessful}
-            >
+          <CardFooter>
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}

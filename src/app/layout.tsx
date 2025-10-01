@@ -13,17 +13,31 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="dark" suppressHydrationWarning>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap"
-          rel="stylesheet"
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+              @font-face {
+                font-family: 'Geist';
+                src: url('https://assets.vercel.com/raw/upload/v1587415301/fonts/2/Geist-Regular.woff2') format('woff2');
+                font-weight: 400;
+                font-style: normal;
+              }
+              @font-face {
+                font-family: 'Geist';
+                src: url('https://assets.vercel.com/raw/upload/v1587415301/fonts/2/Geist-Medium.woff2') format('woff2');
+                font-weight: 500;
+                font-style: normal;
+              }
+              @font-face {
+                font-family: 'Geist';
+                src: url('https://assets.vercel.com/raw/upload/v1587415301/fonts/2/Geist-Bold.woff2') format('woff2');
+                font-weight: 700;
+                font-style: normal;
+              }
+            `,
+          }}
         />
       </head>
       <body className="font-body antialiased">

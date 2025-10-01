@@ -85,7 +85,7 @@ export default function AccountForm({ user, balance }: AccountFormProps) {
   });
   
   const cost = Number(followerTargetValue) * 2.5;
-  const totalFollowers = (initialFollowers || 0) + (Number(followerTargetValue) || 0);
+  const totalFollowers = (Number(initialFollowers) || 0) + (Number(followerTargetValue) || 0);
 
   useEffect(() => {
     const fetchFollowers = async () => {
@@ -271,7 +271,7 @@ export default function AccountForm({ user, balance }: AccountFormProps) {
                 {isSubmitting && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Submit & Pay ₦{cost.toFixed(2)} from Balance
+                Pay ₦{cost.toFixed(2)}
               </Button>
             </CardFooter>
           </form>

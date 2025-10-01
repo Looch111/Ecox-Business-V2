@@ -54,6 +54,9 @@ export default function Instructions({ onNext }: InstructionsProps) {
                 The service will perform automated actions on your behalf, such
                 as following and unfollowing other users.
               </li>
+              <li>
+                There will be no refunds for any payments made for this service.
+              </li>
             </ul>
           </div>
           <div className="flex items-center space-x-2 mt-6">

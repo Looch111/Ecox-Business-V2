@@ -112,7 +112,7 @@ export async function verifyFlutterwaveTransaction(
       message: "Transaction ID and reference are required for verification.",
     };
   }
-  
+
   const uid = tx_ref.split("-")[2];
   if (!uid) {
     return {
@@ -121,9 +121,8 @@ export async function verifyFlutterwaveTransaction(
     };
   }
 
-
   try {
-    const response = await fetch(
+    const flutterwaveResponse = await fetch(
       `https://api.flutterwave.com/v3/transactions/${transaction_id}/verify`,
       {
         headers: {
@@ -132,29 +131,62 @@ export async function verifyFlutterwaveTransaction(
       }
     );
 
-    const data = await response.json();
+    const data = await flutterwaveResponse.json();
 
     if (
-      data.status === "success" &&
-      data.data?.status === "successful" &&
-      data.data?.tx_ref === tx_ref
+      data.status !== "success" ||
+      data.data?.status !== "successful" ||
+      data.data?.tx_ref !== tx_ref
     ) {
-      await addFundsToAccount(uid, data.data.amount);
-      return { success: true, amount: data.data.amount };
-    } else {
       return {
         success: false,
-        message: data.message || "Transaction verification failed with Flutterwave.",
+        message:
+          data.message || "Transaction verification failed with Flutterwave.",
       };
     }
+
+    const amount = data.data.amount;
+    
+    // ** SECURITY FIX: Use Firestore transaction to prevent replay attacks **
+    const processedTxRef = doc(db, "processed_transactions", transaction_id);
+
+    await runTransaction(db, async (transaction) => {
+      const processedTxDoc = await transaction.get(processedTxRef);
+
+      if (processedTxDoc.exists()) {
+        throw new Error("This transaction has already been processed.");
+      }
+
+      const userRef = doc(db, "users", uid);
+      const userDoc = await transaction.get(userRef);
+
+      if (!userDoc.exists()) {
+         transaction.set(userRef, { balance: amount });
+      } else {
+         transaction.update(userRef, { balance: increment(amount) });
+      }
+
+      transaction.set(processedTxRef, {
+        tx_ref,
+        uid,
+        amount,
+        processedAt: serverTimestamp(),
+      });
+    });
+
+    return { success: true, amount };
+
   } catch (error: any) {
     console.error("Flutterwave verification error:", error);
     return {
       success: false,
-      message: error.message || "An internal error occurred during verification.",
+      message:
+        error.message ||
+        "An internal error occurred during verification.",
     };
   }
 }
+
 
 export async function getUsernameSuggestions(
   input: SuggestTargetUsernamesInput

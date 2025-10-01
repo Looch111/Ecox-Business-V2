@@ -92,16 +92,16 @@ export default function AccountForm({ user }: AccountFormProps) {
   });
 
   useEffect(() => {
-    if (searchParams.get("status") === "successful") {
+    if (searchParams.get("status") === "successful" && !paymentSuccessful) {
       setPaymentSuccessful(true);
       toast({
         title: "Payment Confirmed!",
         description: "You can now submit your account details.",
       });
-      // Clean the URL
+      // It's better to clean the URL to avoid re-triggering this on refresh
       router.replace("/");
     }
-  }, [searchParams, router, toast]);
+  }, [searchParams, router, toast, paymentSuccessful]);
 
   const paymentAmount = Number(additionalFollowers) * NAIRA_PER_FOLLOWER;
 
@@ -303,11 +303,8 @@ export default function AccountForm({ user }: AccountFormProps) {
                     closePaymentModal(); // close the modal immediately
                   },
                   onClose: () => {
-                     toast({
-                        title: "Payment Modal Closed",
-                        description:
-                          "If payment was not completed, you can try again.",
-                      });
+                     // This function is called when the user closes the payment modal
+                     // without completing the payment. We can optionally show a message.
                   },
                 });
               }}

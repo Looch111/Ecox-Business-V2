@@ -48,9 +48,10 @@ type AccountFormValues = z.infer<typeof accountFormSchema>;
 
 interface AccountFormProps {
   user: User;
+  balance: number;
 }
 
-export default function AccountForm({ user }: AccountFormProps) {
+export default function AccountForm({ user, balance }: AccountFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFetchingFollowers, setIsFetchingFollowers] = useState(false);
   const [isKiwiGuideOpen, setIsKiwiGuideOpen] = useState(false);
@@ -72,6 +73,13 @@ export default function AccountForm({ user }: AccountFormProps) {
     control: form.control,
     name: "bearerToken",
   });
+
+  const followerTargetValue = useWatch({
+    control: form.control,
+    name: "followerTarget",
+  });
+  
+  const cost = followerTargetValue * 2.6;
 
   useEffect(() => {
     const fetchFollowers = async () => {
@@ -102,15 +110,20 @@ export default function AccountForm({ user }: AccountFormProps) {
   }, [bearerTokenValue, form, toast]);
 
   async function onSubmit(values: AccountFormValues) {
+    if (balance < cost) {
+      toast({
+        variant: "destructive",
+        title: "Insufficient Balance",
+        description: `Your balance is too low to submit. Required: ₦${cost.toFixed(2)}. Please deposit more funds.`,
+      });
+      return;
+    }
+    
     setIsSubmitting(true);
     try {
-      const followerTarget =
-        Number(values.initialFollowers) + Number(values.followerTarget);
-
       await addAccount({
         ...values,
         uid: user.uid,
-        followerTarget: followerTarget,
       });
       toast({
         title: "Account Submitted!",
@@ -216,7 +229,7 @@ export default function AccountForm({ user }: AccountFormProps) {
                     <FormDescription>
                       Enter the number of new followers you want to gain. Your
                       current follower count is{" "}
-                      {form.getValues("initialFollowers")}.
+                      {form.getValues("initialFollowers")}. Cost: ₦{cost.toFixed(2)}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -253,7 +266,7 @@ export default function AccountForm({ user }: AccountFormProps) {
                 {isSubmitting && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Submit Account
+                Submit & Pay ₦{cost.toFixed(2)} from Balance
               </Button>
             </CardFooter>
           </form>

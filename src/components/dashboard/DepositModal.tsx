@@ -41,14 +41,12 @@ interface DepositModalProps {
   isOpen: boolean;
   onClose: () => void;
   user: User;
-  accountId: string;
 }
 
 export default function DepositModal({
   isOpen,
   onClose,
   user,
-  accountId,
 }: DepositModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
@@ -87,7 +85,7 @@ export default function DepositModal({
       callback: async (response) => {
         if (response.status === "successful") {
           try {
-            await addFundsToAccount(user.uid, accountId, values.amount);
+            await addFundsToAccount(user.uid, values.amount);
             toast({
               title: "Deposit Successful!",
               description: `₦${values.amount} has been added to your account.`,
@@ -123,8 +121,7 @@ export default function DepositModal({
         <DialogHeader>
           <DialogTitle>Deposit Funds</DialogTitle>
           <DialogDescription>
-            Add funds to your account balance. Your new balance will be updated
-            upon successful payment.
+            Add funds to your account balance. This balance will be used to pay for account submissions.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>

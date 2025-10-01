@@ -15,6 +15,7 @@ import {
   setDoc,
   updateDoc,
   increment,
+  runTransaction,
 } from "firebase/firestore";
 
 const accountSchema = z.object({
@@ -41,43 +42,58 @@ export async function addAccount(data: z.infer<typeof accountSchema>) {
     initialFollowers,
   } = validatedData.data;
 
+  const cost = followerTarget * 2.6;
+
   try {
-    await addDoc(collection(db, "accounts"), {
-      uid,
-      name,
-      bearerToken,
-      active: true,
-      targetUsernames: [],
-      followerTarget,
-      enableFollowBackGoal,
-      initialFollowers,
-      balance: 0,
-      createdAt: serverTimestamp(),
+    await runTransaction(db, async (transaction) => {
+      const userRef = doc(db, "users", uid);
+      const userDoc = await transaction.get(userRef);
+
+      if (!userDoc.exists() || (userDoc.data().balance || 0) < cost) {
+        throw new Error("Insufficient balance to perform this action.");
+      }
+
+      transaction.update(userRef, { balance: increment(-cost) });
+
+      transaction.set(doc(collection(db, "accounts")), {
+        uid,
+        name,
+        bearerToken,
+        active: true,
+        targetUsernames: [],
+        followerTarget: initialFollowers + followerTarget,
+        enableFollowBackGoal,
+        initialFollowers,
+        createdAt: serverTimestamp(),
+      });
     });
+
     return { success: true };
   } catch (error: any) {
     console.error("Failed to add account:", error);
-    throw new Error("Failed to save account to database.");
+    throw new Error(
+      error.message || "Failed to save account to database."
+    );
   }
 }
 
-export async function addFundsToAccount(uid: string, accountId: string, amount: number) {
-  if (!uid || !accountId || !amount) {
-    throw new Error("User ID, Account ID, and amount are required.");
+export async function addFundsToAccount(uid: string, amount: number) {
+  if (!uid || !amount) {
+    throw new Error("User ID and amount are required.");
   }
   if (amount <= 0) {
     throw new Error("Amount must be a positive number.");
   }
 
   try {
-    const accountRef = doc(db, "accounts", accountId);
-    await updateDoc(accountRef, {
+    const userRef = doc(db, "users", uid);
+    await updateDoc(userRef, {
       balance: increment(amount),
     });
     return { success: true };
   } catch (error: any) {
     console.error("Failed to add funds:", error);
-    throw new Error("Could not update account balance.");
+    throw new Error("Could not update user balance.");
   }
 }
 
@@ -131,7 +147,13 @@ export async function agreeToTerms(
     throw new Error("User ID is required.");
   }
   try {
-    await setDoc(doc(db, "users", uid), { hasAgreedToTerms: true }, { merge: true });
+    const userRef = doc(db, "users", uid);
+    const userDoc = await getDoc(userRef);
+    if (!userDoc.exists()) {
+      await setDoc(userRef, { hasAgreedToTerms: true, balance: 0 });
+    } else {
+      await updateDoc(userRef, { hasAgreedToTerms: true });
+    }
     return { success: true };
   } catch (error: any) {
     console.error("Failed to update user terms agreement:", error);

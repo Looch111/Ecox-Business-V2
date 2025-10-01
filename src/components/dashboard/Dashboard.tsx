@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { User } from "firebase/auth";
-import { collection, query, where, onSnapshot, DocumentData } from "firebase/firestore";
+import { collection, query, where, onSnapshot, DocumentData, doc } from "firebase/firestore";
 import { db, auth, signOut } from "@/lib/firebase";
 import AccountForm from "./AccountForm";
 import { Loader2, LogOut, Wallet } from "lucide-react";
@@ -20,6 +20,7 @@ type OnboardingStep = "instructions" | "account_form";
 
 export default function Dashboard({ user }: DashboardProps) {
   const [account, setAccount] = useState<DocumentData | null>(null);
+  const [userProfile, setUserProfile] = useState<DocumentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [onboardingStep, setOnboardingStep] =
     useState<OnboardingStep>("instructions");
@@ -40,8 +41,19 @@ export default function Dashboard({ user }: DashboardProps) {
       setLoading(false); 
     };
 
+    // Listener for user profile (for balance)
+    const userDocRef = doc(db, "users", user.uid);
+    const unsubscribeUser = onSnapshot(userDocRef, (doc) => {
+      if (doc.exists()) {
+        setUserProfile(doc.data());
+      } else {
+        setUserProfile({ balance: 0, hasAgreedToTerms: false });
+      }
+    });
+
+    // Listener for account submission
     const q = query(collection(db, "accounts"), where("uid", "==", user.uid));
-    const unsubscribe = onSnapshot(
+    const unsubscribeAccounts = onSnapshot(
       q,
       (snapshot) => {
         if (!snapshot.empty) {
@@ -64,7 +76,11 @@ export default function Dashboard({ user }: DashboardProps) {
         setLoading(false);
       }
     );
-    return () => unsubscribe();
+
+    return () => {
+      unsubscribeUser();
+      unsubscribeAccounts();
+    };
   }, [user, toast]);
 
   const handleLogout = async () => {
@@ -84,15 +100,7 @@ export default function Dashboard({ user }: DashboardProps) {
   };
 
   const handleDepositClick = () => {
-    if (!account) {
-      toast({
-        variant: "destructive",
-        title: "Account Required",
-        description: "Please submit an account before depositing funds.",
-      });
-    } else {
-      setIsDepositModalOpen(true);
-    }
+    setIsDepositModalOpen(true);
   };
 
   const renderOnboarding = () => {
@@ -105,11 +113,11 @@ export default function Dashboard({ user }: DashboardProps) {
           />
         );
       case "account_form":
-        return <AccountForm user={user} />;
+        return <AccountForm user={user} balance={userProfile?.balance || 0} />;
     }
   };
   
-  const balance = account?.balance ?? 0;
+  const balance = userProfile?.balance ?? 0;
   const formattedBalance = new Intl.NumberFormat("en-NG", {
     style: "currency",
     currency: "NGN",
@@ -433,7 +441,7 @@ export default function Dashboard({ user }: DashboardProps) {
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : account ? (
-          <AccountForm user={user} />
+          <AccountForm user={user} balance={balance} />
         ) : (
           renderOnboarding()
         )}
@@ -443,14 +451,11 @@ export default function Dashboard({ user }: DashboardProps) {
         © {new Date().getFullYear()} Ecox. All rights reserved.
       </footer>
     </div>
-    {account && (
-        <DepositModal
-          isOpen={isDepositModalOpen}
-          onClose={() => setIsDepositModalOpen(false)}
-          user={user}
-          accountId={account.id}
-        />
-      )}
+    <DepositModal
+      isOpen={isDepositModalOpen}
+      onClose={() => setIsDepositModalOpen(false)}
+      user={user}
+    />
     </>
   );
 }

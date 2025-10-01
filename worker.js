@@ -364,6 +364,20 @@ function scheduleNextClaimCheckForAccount(account) {
     }, delay);
 }
 
+async function markAccountAsDone(account) {
+    if (!account || !account.id) {
+        log('error', `[SYSTEM] Invalid account provided to markAsDone.`, 'system');
+        return;
+    }
+    try {
+        const accountRef = db.collection('accounts').doc(account.id);
+        await accountRef.update({ status: 'done', active: false });
+        log('success', `[${account.name}] Marked as 'done' in Firestore.`, account.name);
+    } catch (error) {
+        log('error', `[${account.name}] Failed to mark account as done in Firestore: ${error.message}`, account.name);
+    }
+}
+
 // **NEW:** Function to check follow-back status against the goal
 async function checkFollowBacksAndUnfollowIfComplete(account, runtime) {
     const accName = account.name;
@@ -383,6 +397,7 @@ async function checkFollowBacksAndUnfollowIfComplete(account, runtime) {
         if (netGained >= targetFollowBacks) {
             log('success', `[${accName}] Follow Back Goal Achieved! Initiating selective unfollow.`, accName);
             await runSelectiveUnfollowPass(account, runtime);
+            await markAccountAsDone(account); // Mark as done in Firestore
             runtime.running = false; // Stop the follow/discover loop
             return true;
         }
@@ -488,6 +503,7 @@ async function runFollowAndDiscoverLoopForAccount(account) {
         if (runtime.initialFollowers > 0 && targetFollowBacks <= 0) {
             log('warn', `[${accName}] Goal already met (${runtime.initialFollowers} >= ${followerTarget}). Initiating selective unfollow and stopping.`, accName);
             await runSelectiveUnfollowPass(account, runtime);
+            await markAccountAsDone(account); // Mark as done in Firestore
             runtime.running = false;
         }
     } else {
@@ -517,6 +533,7 @@ async function runFollowAndDiscoverLoopForAccount(account) {
         if (enableGoal && runtime.netFollowBacks >= targetFollowBacks) {
             log('success', `[${accName}] Follow Back Goal Achieved! (${runtime.netFollowBacks} >= ${targetFollowBacks})`, accName);
             await runSelectiveUnfollowPass(account, runtime);
+            await markAccountAsDone(account); // Mark as done in Firestore
             runtime.running = false; // Stop the loop
             break;
         }
@@ -566,6 +583,7 @@ async function runFollowAndDiscoverLoopForAccount(account) {
                 if (enableGoal && runtime.netFollowBacks >= targetFollowBacks) {
                     log('success', `[${accName}] Follow Back Goal Achieved! (${runtime.netFollowBacks} >= ${targetFollowBacks})`, accName);
                     await runSelectiveUnfollowPass(account, runtime);
+                    await markAccountAsDone(account); // Mark as done in Firestore
                     runtime.running = false;
                     break;
                 }

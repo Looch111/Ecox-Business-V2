@@ -73,7 +73,7 @@ export default function DepositModal({
     customizations: {
       title: "Ecox User Hub Deposit",
       description: "Fund your Ecox account balance.",
-      logo: "https://i.imgur.com/h52p32L.png",
+      logo: "https://i.imgur.com/o7gCwJ9.jpeg",
     },
   };
 
@@ -117,7 +117,7 @@ export default function DepositModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] px-6">
+      <DialogContent className="w-[90vw] max-w-lg rounded-lg px-6">
         <DialogHeader>
           <DialogTitle>Deposit Funds</DialogTitle>
           <DialogDescription>

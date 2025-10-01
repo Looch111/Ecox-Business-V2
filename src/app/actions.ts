@@ -106,9 +106,12 @@ export async function verifyFlutterwaveTransaction(
   transaction_id: string,
   expectedAmount: number,
   uid: string
-) {
+): Promise<{ success: boolean; amount?: number; message?: string }> {
   if (!transaction_id || !uid) {
-    throw new Error("Transaction ID and User ID are required for verification.");
+    return {
+      success: false,
+      message: "Transaction ID and User ID are required for verification.",
+    };
   }
 
   try {
@@ -131,13 +134,17 @@ export async function verifyFlutterwaveTransaction(
       await addFundsToAccount(uid, data.data.amount);
       return { success: true, amount: data.data.amount };
     } else {
-      throw new Error(data.message || "Transaction verification failed.");
+      return {
+        success: false,
+        message: data.message || "Transaction verification failed.",
+      };
     }
   } catch (error: any) {
     console.error("Flutterwave verification error:", error);
-    throw new Error(
-      error.message || "Could not verify payment with Flutterwave."
-    );
+    return {
+      success: false,
+      message: error.message || "Could not verify payment with Flutterwave.",
+    };
   }
 }
 

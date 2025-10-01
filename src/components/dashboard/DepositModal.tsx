@@ -59,13 +59,15 @@ export default function DepositModal({
   });
 
   const amount = form.watch("amount");
+  const tx_ref = `ecox-deposit-${user.uid}-${Date.now()}`;
 
   const flutterwaveConfig = {
     public_key: "FLWPUBK_TEST-9972db282f658db461af332dd2e2ca37-X",
-    tx_ref: `ecox-deposit-${user.uid}-${Date.now()}`,
+    tx_ref,
     amount,
     currency: "NGN",
     payment_options: "card,banktransfer,ussd",
+    redirect_url: `${window.location.origin}/payment-status`,
     customer: {
       email: user.email!,
       name: user.displayName || user.email!,
@@ -81,43 +83,22 @@ export default function DepositModal({
 
   async function onSubmit(values: DepositFormValues) {
     setIsSubmitting(true);
+    // Store amount in local storage to retrieve on the redirect page
+    localStorage.setItem(`tx_amount_${tx_ref}`, String(values.amount));
+    
     handleFlutterwavePayment({
-      callback: async (response) => {
-        if (response.status === "successful" && response.transaction_id) {
-          try {
-            const verificationResult = await verifyFlutterwaveTransaction(
-              String(response.transaction_id),
-              values.amount,
-              user.uid
-            );
-
-            if (verificationResult.success) {
-              toast({
-                title: "Deposit Successful!",
-                description: `₦${verificationResult.amount} has been added to your account.`,
-              });
-              onClose();
-              form.reset();
-            } else {
-               throw new Error("Verification failed on the server.");
-            }
-          } catch (error: any) {
+      callback: (response) => {
+        // This callback is for redirect flow, but we can still log errors if any
+        if (response.status !== "successful") {
             toast({
-              variant: "destructive",
-              title: "Verification Failed",
-              description:
-                error.message ||
-                "There was a problem verifying your payment. Please contact support.",
+                variant: "destructive",
+                title: "Payment Initialization Failed",
+                description: "Could not redirect to payment page. Please try again.",
             });
-          }
-        } else {
-          toast({
-            variant: "destructive",
-            title: "Payment Failed",
-            description: "Your payment was not successful. Please try again.",
-          });
         }
-        closePaymentModal();
+        // Don't close modal, redirect will happen.
+        // We don't call verification here anymore.
+        closePaymentModal(); 
         setIsSubmitting(false);
       },
       onClose: () => {

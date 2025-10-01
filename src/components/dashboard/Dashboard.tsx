@@ -116,6 +116,13 @@ export default function Dashboard({ user }: DashboardProps) {
          if (accounts.length > 0) {
             return (
               <div className="w-full max-w-2xl mx-auto space-y-4">
+                 <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold">Your Submissions</h2>
+                  <Button onClick={handleAddNew}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add New Account
+                  </Button>
+                </div>
                 {accounts.map(acc => <AccountStatus key={acc.id} account={acc} />)}
               </div>
             );
@@ -160,7 +167,7 @@ export default function Dashboard({ user }: DashboardProps) {
      }
   }
   
-  const showAddButton = userProfile?.hasAgreedToTerms && (mainView === 'status' || mainView === 'form');
+  const showBackButton = userProfile?.hasAgreedToTerms && mainView === 'form';
 
   return (
     <>
@@ -477,15 +484,9 @@ export default function Dashboard({ user }: DashboardProps) {
         {renderContent()}
       </main>
       
-      {showAddButton && (
+      {showBackButton && (
         <div className="fixed bottom-8 right-8 z-20">
-           {mainView === 'status' && (
-              <Button size="lg" onClick={handleAddNew}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add New Account
-              </Button>
-            )}
-            {mainView === 'form' && (
+           {mainView === 'form' && (
                <Button size="lg" variant="outline" onClick={() => setMainView('status')}>
                 View Submissions
               </Button>

@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import {
   Card,
   CardContent,
@@ -10,45 +9,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlaceHolderImages } from "@/lib/placeholder-images";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
 
 interface TokenGuideProps {
   onNext: () => void;
 }
-
-const steps = [
-  {
-    title: "Step 1: Open Developer Tools",
-    description:
-      "On the Ecox website, right-click anywhere on the page and select 'Inspect' to open the developer tools. Then, navigate to the 'Network' tab.",
-    imageId: "token-guide-step1",
-  },
-  {
-    title: "Step 2: Find the API Request",
-    description:
-      "With the Network tab open, perform an action on the site (like refreshing the page or clicking your profile). Look for a request to 'api.ecox.network'. Select it.",
-    imageId: "token-guide-step2",
-  },
-  {
-    title: "Step 3: Locate the Bearer Token",
-    description:
-      "In the 'Headers' tab for the selected request, scroll down to the 'Request Headers' section. Find the 'Authorization' header. The value starting with 'Bearer ' is your token.",
-    imageId: "token-guide-step3",
-  },
-  {
-    title: "Step 4: Copy the Token",
-    description:
-      "Carefully copy the entire token string, without the word 'Bearer ' at the beginning. You will need to paste this into the form on the next page.",
-    imageId: "token-guide-step4",
-  },
-];
 
 export default function TokenGuide({ onNext }: TokenGuideProps) {
   return (
@@ -57,48 +21,28 @@ export default function TokenGuide({ onNext }: TokenGuideProps) {
         <CardHeader>
           <CardTitle>How to Get Your Bearer Token</CardTitle>
           <CardDescription>
-            Follow these steps to find the required token from your account.
+            Watch the video below to find the required token from your account.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Carousel className="w-full">
-            <CarouselContent>
-              {steps.map((step, index) => {
-                const imageData = PlaceHolderImages.find(
-                  (img) => img.id === step.imageId
-                );
-                return (
-                  <CarouselItem key={index}>
-                    <div className="p-1">
-                      <div className="flex flex-col items-center justify-center gap-4 text-center">
-                        <div className="w-full aspect-video bg-muted rounded-lg overflow-hidden relative">
-                          {imageData && (
-                             <Image
-                               src={imageData.imageUrl}
-                               alt={step.title}
-                               fill
-                               className="object-cover"
-                               data-ai-hint={imageData.imageHint}
-                             />
-                          )}
-                        </div>
-                        <div className="space-y-2">
-                           <h3 className="font-semibold text-lg text-foreground">
-                            {step.title}
-                           </h3>
-                           <p className="text-sm text-muted-foreground">
-                            {step.description}
-                           </p>
-                        </div>
-                      </div>
-                    </div>
-                  </CarouselItem>
-                );
-              })}
-            </CarouselContent>
-            <CarouselPrevious className="ml-12" />
-            <CarouselNext className="mr-12" />
-          </Carousel>
+          <div className="w-full aspect-video bg-muted rounded-lg overflow-hidden relative">
+            <video
+              className="w-full h-full object-cover"
+              src="https://www.w3schools.com/html/mov_bbb.mp4"
+              controls
+              autoPlay
+              muted
+              loop
+            >
+              Your browser does not support the video tag.
+            </video>
+          </div>
+           <div className="prose dark:prose-invert max-w-none text-sm text-muted-foreground space-y-2 mt-4">
+              <p>
+                The video above demonstrates how to find your bearer token using your browser's developer tools. 
+                You will need to copy this token and paste it into the form on the next page.
+              </p>
+          </div>
         </CardContent>
         <CardFooter className="flex justify-end">
           <Button onClick={onNext}>I Have My Token, Continue</Button>

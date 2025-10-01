@@ -298,7 +298,7 @@ export default function AccountForm({ user }: AccountFormProps) {
                 handleFlutterwavePayment({
                   callback: (response) => {
                     if (response.status === "successful") {
-                      router.push('/?payment=successful');
+                      window.location.href = '/?payment=successful';
                     } else {
                       toast({
                         variant: "destructive",

@@ -87,10 +87,8 @@ export async function getInitialFollowers(
     }
 
     const data = await response.json();
-
-    // Assuming the total count is in a 'total' property in the response data.
-    // Adjust if the API response structure is different.
-    const followerCount = data?.data?.total ?? 0;
+    
+    const followerCount = data?.data?.list?.total ?? 0;
 
     return { count: followerCount };
   } catch (error) {

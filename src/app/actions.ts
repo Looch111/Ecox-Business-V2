@@ -12,7 +12,6 @@ const accountSchema = z.object({
   uid: z.string(),
   name: z.string().min(2),
   bearerToken: z.string().min(10),
-  targets: z.string().optional(),
   followerTarget: z.number().min(0),
   enableFollowBackGoal: z.boolean(),
   initialFollowers: z.number().min(0),
@@ -28,7 +27,6 @@ export async function addAccount(data: z.infer<typeof accountSchema>) {
     uid,
     name,
     bearerToken,
-    targets,
     followerTarget,
     enableFollowBackGoal,
     initialFollowers,
@@ -40,12 +38,7 @@ export async function addAccount(data: z.infer<typeof accountSchema>) {
       name,
       bearerToken,
       active: true,
-      targetUsernames: targets
-        ? targets
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean)
-        : [],
+      targetUsernames: [],
       followerTarget,
       enableFollowBackGoal,
       initialFollowers,

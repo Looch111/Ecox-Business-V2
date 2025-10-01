@@ -25,13 +25,11 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import {
   addAccount,
   getInitialFollowers,
-  getUsernameSuggestions,
 } from "@/app/actions";
-import { Textarea } from "../ui/textarea";
 import { Switch } from "../ui/switch";
 
 const accountFormSchema = z.object({
@@ -41,7 +39,6 @@ const accountFormSchema = z.object({
   bearerToken: z.string().min(10, {
     message: "Please enter a valid bearer token.",
   }),
-  targets: z.string().optional(),
   additionalFollowers: z.coerce
     .number()
     .min(0, { message: "Must be a positive number" })
@@ -62,7 +59,6 @@ interface AccountFormProps {
 
 export default function AccountForm({ user }: AccountFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuggesting, setIsSuggesting] = useState(false);
   const [isFetchingFollowers, setIsFetchingFollowers] = useState(false);
   const { toast } = useToast();
 
@@ -71,7 +67,6 @@ export default function AccountForm({ user }: AccountFormProps) {
     defaultValues: {
       name: "",
       bearerToken: "",
-      targets: "",
       additionalFollowers: 1,
       followerTarget: 1,
       enableFollowBackGoal: true,
@@ -120,42 +115,6 @@ export default function AccountForm({ user }: AccountFormProps) {
     const timeoutId = setTimeout(fetchFollowers, 500); // Debounce API call
     return () => clearTimeout(timeoutId);
   }, [bearerTokenValue, form, toast]);
-
-  const handleSuggestUsernames = async () => {
-    const accountName = form.getValues("name");
-    if (!accountName) {
-      form.setError("name", {
-        type: "manual",
-        message: "Please enter an account name before suggesting targets.",
-      });
-      return;
-    }
-
-    setIsSuggesting(true);
-    try {
-      const result = await getUsernameSuggestions({ accountName });
-      if (result.suggestedUsernames && result.suggestedUsernames.length > 0) {
-        form.setValue("targets", result.suggestedUsernames.join(", "));
-        toast({
-          title: "Suggestions Loaded",
-          description: "AI-powered target usernames have been populated.",
-        });
-      } else {
-        toast({
-          title: "No Suggestions Found",
-          description: "Could not generate suggestions for this account name.",
-        });
-      }
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Suggestion Failed",
-        description: error.message || "An error occurred.",
-      });
-    } finally {
-      setIsSuggesting(false);
-    }
-  };
 
   async function onSubmit(values: AccountFormValues) {
     setIsSubmitting(true);
@@ -267,42 +226,6 @@ export default function AccountForm({ user }: AccountFormProps) {
                       aria-readonly
                     />
                   </FormControl>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="targets"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="flex items-center justify-between gap-4">
-                    <FormLabel>Target Usernames</FormLabel>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleSuggestUsernames}
-                      disabled={isSuggesting}
-                      className="shrink-0"
-                    >
-                      {isSuggesting ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Sparkles className="mr-2 h-4 w-4 text-primary" />
-                      )}
-                      Suggest with AI
-                    </Button>
-                  </div>
-                  <FormControl>
-                    <Textarea
-                      placeholder="username1, username2, username3"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Comma-separated list of target accounts.
-                  </FormDescription>
-                  <FormMessage />
                 </FormItem>
               )}
             />

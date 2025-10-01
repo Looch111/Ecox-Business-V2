@@ -5,7 +5,7 @@ import type { User } from "firebase/auth";
 import { collection, query, where, onSnapshot, DocumentData, doc } from "firebase/firestore";
 import { db, auth, signOut } from "@/lib/firebase";
 import AccountForm from "./AccountForm";
-import { Loader2, LogOut, Wallet } from "lucide-react";
+import { Loader2, LogOut, Wallet, PlusCircle } from "lucide-react";
 import { Button } from "../ui/button";
 import { useToast } from "@/hooks/use-toast";
 import Instructions from "./Instructions";
@@ -17,11 +17,10 @@ interface DashboardProps {
   user: User;
 }
 
-type OnboardingStep = "instructions" | "account_form";
 type MainView = "onboarding" | "form" | "deposit" | "status";
 
 export default function Dashboard({ user }: DashboardProps) {
-  const [account, setAccount] = useState<DocumentData | null>(null);
+  const [accounts, setAccounts] = useState<DocumentData[]>([]);
   const [userProfile, setUserProfile] = useState<DocumentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [mainView, setMainView] = useState<MainView>("onboarding");
@@ -40,7 +39,7 @@ export default function Dashboard({ user }: DashboardProps) {
         const userData = doc.data();
         setUserProfile(userData);
         if (userData.hasAgreedToTerms && mainView === "onboarding") {
-          setMainView("form");
+          setMainView("status"); 
         }
       } else {
         setUserProfile({ balance: 0, hasAgreedToTerms: false });
@@ -52,18 +51,13 @@ export default function Dashboard({ user }: DashboardProps) {
     const unsubscribeAccounts = onSnapshot(
       q,
       (snapshot) => {
-        if (!snapshot.empty) {
-          const accountData = snapshot.docs[0].data();
-          accountData.id = snapshot.docs[0].id;
-          setAccount(accountData);
+        const userAccounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setAccounts(userAccounts);
+
+        if (userProfile?.hasAgreedToTerms) {
           if (mainView !== 'deposit' && mainView !== 'form') {
-             setMainView("status");
+            setMainView('status');
           }
-        } else {
-          setAccount(null);
-           if (userProfile?.hasAgreedToTerms && mainView !== 'deposit') {
-             setMainView("form");
-           }
         }
         setLoading(false);
       },
@@ -99,6 +93,10 @@ export default function Dashboard({ user }: DashboardProps) {
       });
     }
   };
+  
+  const handleAddNew = () => {
+    setMainView("form");
+  }
 
   const renderContent = () => {
     if (loading) {
@@ -111,23 +109,33 @@ export default function Dashboard({ user }: DashboardProps) {
     
     switch (mainView) {
       case 'deposit':
-        return <DepositForm user={user} onShowForm={() => setMainView(account ? 'status' : 'form')} />;
-      case 'status':
-         if (account) {
-            return <AccountStatus account={account} onAddNew={() => setMainView('form')} />;
-         }
-         // Fallback to form if status is set but no account found
-         setMainView('form'); 
-         return <AccountForm user={user} balance={userProfile?.balance || 0} />;
+        return <DepositForm user={user} onShowForm={() => setMainView('status')} />;
       case 'form':
         return <AccountForm user={user} balance={userProfile?.balance || 0} />;
+      case 'status':
+         if (accounts.length > 0) {
+            return (
+              <div className="w-full max-w-2xl mx-auto space-y-4">
+                {accounts.map(acc => <AccountStatus key={acc.id} account={acc} />)}
+              </div>
+            );
+         }
+         return (
+            <div className="text-center pt-10">
+              <p className="text-muted-foreground mb-4">You have no submitted accounts.</p>
+              <Button onClick={handleAddNew}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add Your First Account
+              </Button>
+            </div>
+         );
       case 'onboarding':
       default:
         return (
           <Instructions
             user={user}
             onNext={() => {
-              setMainView("form");
+              setMainView("status");
             }}
           />
         );
@@ -151,6 +159,8 @@ export default function Dashboard({ user }: DashboardProps) {
         });
      }
   }
+  
+  const showAddButton = userProfile?.hasAgreedToTerms && (mainView === 'status' || mainView === 'form');
 
   return (
     <>
@@ -466,6 +476,22 @@ export default function Dashboard({ user }: DashboardProps) {
       <main className="flex-grow">
         {renderContent()}
       </main>
+      
+      {showAddButton && (
+        <div className="fixed bottom-8 right-8 z-20">
+           {mainView === 'status' && (
+              <Button size="lg" onClick={handleAddNew}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add New Account
+              </Button>
+            )}
+            {mainView === 'form' && (
+               <Button size="lg" variant="outline" onClick={() => setMainView('status')}>
+                View Submissions
+              </Button>
+            )}
+        </div>
+      )}
 
       <footer className="text-center py-4 text-sm text-muted-foreground mt-8">
         © {new Date().getFullYear()} Ecox. All rights reserved.
@@ -474,5 +500,3 @@ export default function Dashboard({ user }: DashboardProps) {
     </>
   );
 }
-
-    

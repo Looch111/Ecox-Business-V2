@@ -14,35 +14,24 @@ import { DocumentData } from "firebase/firestore";
 
 interface AccountStatusProps {
   account: DocumentData;
-  onAddNew: () => void;
 }
 
-export default function AccountStatus({ account, onAddNew }: AccountStatusProps) {
+export default function AccountStatus({ account }: AccountStatusProps) {
   return (
-    <div className="flex items-start justify-center pt-10 animate-fade-in-up">
-      <Card className="w-full max-w-2xl shadow-lg border">
-        <CardHeader>
-          <CardTitle>Your Submission is Processing</CardTitle>
-          <CardDescription>
-            We have received your account details and are currently processing
-            your request. You can see the details of your submission below.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex items-center justify-center p-4 bg-secondary/30 rounded-lg">
-            <Loader2 className="mr-3 h-5 w-5 animate-spin text-primary" />
-            <span className="font-medium text-primary">
-              Status: Processing
-            </span>
-          </div>
-
-          <div className="space-y-4 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground flex items-center gap-2">
-                <User className="h-4 w-4" /> Account Name
+    <div className="animate-fade-in-up">
+      <Card className="w-full shadow-lg border">
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-xl">{account.name}</CardTitle>
+            <div className="flex items-center p-2 bg-secondary/30 rounded-lg text-xs">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin text-primary" />
+              <span className="font-medium text-primary">
+                Processing
               </span>
-              <span className="font-medium">{account.name}</span>
             </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground flex items-center gap-2">
                 <Hash className="h-4 w-4" /> Initial Followers
@@ -57,18 +46,10 @@ export default function AccountStatus({ account, onAddNew }: AccountStatusProps)
                 {account.followerTarget}
               </span>
             </div>
-          </div>
-          <p className="text-xs text-muted-foreground text-center pt-4">
-            No further action is needed from you at this time. This status will
-            update automatically. Submitting another account will overwrite this one.
+          <p className="text-xs text-muted-foreground text-center pt-2">
+            This status will update automatically. Submitting another account will not affect this one.
           </p>
         </CardContent>
-        <CardFooter>
-          <Button onClick={onAddNew} className="w-full">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Submit Another Account
-          </Button>
-        </CardFooter>
       </Card>
     </div>
   );

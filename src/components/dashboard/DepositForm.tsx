@@ -70,7 +70,7 @@ export default function DepositForm({
       name: user.displayName || user.email!,
     },
     customizations: {
-      title: "Ecox User Hub Deposit",
+      title: "Ecox User Hub/EarnNova",
       description: "Fund your Ecox account balance.",
       logo: "https://i.imgur.com/o7gCwJ9.jpeg",
     },

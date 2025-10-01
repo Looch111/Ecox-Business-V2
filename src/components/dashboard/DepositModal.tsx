@@ -27,7 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-import { addFundsToAccount } from "@/app/actions";
+import { verifyFlutterwaveTransaction } from "@/app/actions";
 
 const depositSchema = z.object({
   amount: z.coerce
@@ -83,20 +83,31 @@ export default function DepositModal({
     setIsSubmitting(true);
     handleFlutterwavePayment({
       callback: async (response) => {
-        if (response.status === "successful") {
+        if (response.status === "successful" && response.transaction_id) {
           try {
-            await addFundsToAccount(user.uid, values.amount);
-            toast({
-              title: "Deposit Successful!",
-              description: `₦${values.amount} has been added to your account.`,
-            });
-            onClose();
-            form.reset();
+            const verificationResult = await verifyFlutterwaveTransaction(
+              String(response.transaction_id),
+              values.amount,
+              user.uid
+            );
+
+            if (verificationResult.success) {
+              toast({
+                title: "Deposit Successful!",
+                description: `₦${verificationResult.amount} has been added to your account.`,
+              });
+              onClose();
+              form.reset();
+            } else {
+               throw new Error("Verification failed on the server.");
+            }
           } catch (error: any) {
             toast({
               variant: "destructive",
-              title: "Update Failed",
-              description: error.message,
+              title: "Verification Failed",
+              description:
+                error.message ||
+                "There was a problem verifying your payment. Please contact support.",
             });
           }
         } else {

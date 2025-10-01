@@ -87,13 +87,57 @@ export async function addFundsToAccount(uid: string, amount: number) {
 
   try {
     const userRef = doc(db, "users", uid);
-    await updateDoc(userRef, {
-      balance: increment(amount),
-    });
+    const userDoc = await getDoc(userRef);
+    if (!userDoc.exists()) {
+      await setDoc(userRef, { balance: amount });
+    } else {
+      await updateDoc(userRef, {
+        balance: increment(amount),
+      });
+    }
     return { success: true };
   } catch (error: any) {
     console.error("Failed to add funds:", error);
     throw new Error("Could not update user balance.");
+  }
+}
+
+export async function verifyFlutterwaveTransaction(
+  transaction_id: string,
+  expectedAmount: number,
+  uid: string
+) {
+  if (!transaction_id || !uid) {
+    throw new Error("Transaction ID and User ID are required for verification.");
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.flutterwave.com/v3/transactions/${transaction_id}/verify`,
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.FLUTTERWAVE_SECRET_KEY}`,
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (
+      data.status === "success" &&
+      data.data?.status === "successful" &&
+      data.data?.amount >= expectedAmount
+    ) {
+      await addFundsToAccount(uid, data.data.amount);
+      return { success: true, amount: data.data.amount };
+    } else {
+      throw new Error(data.message || "Transaction verification failed.");
+    }
+  } catch (error: any) {
+    console.error("Flutterwave verification error:", error);
+    throw new Error(
+      error.message || "Could not verify payment with Flutterwave."
+    );
   }
 }
 

@@ -74,24 +74,25 @@ export async function getInitialFollowers(
 ): Promise<{ count: number }> {
   try {
     const response = await fetch(
-      "https://api.ecox.network/api/v1/user/me",
+      "https://api.ecox.network/api/v1/user/list-follow?offset=1&limit=1&type=follower",
       {
         headers: {
           Authorization: `Bearer ${bearerToken}`,
+          "Content-Type": "application/json",
         },
       }
     );
 
     if (!response.ok) {
-      throw new Error("Failed to fetch user data from Ecox API.");
+      throw new Error(`Failed to fetch followers: ${response.status}`);
     }
 
     const data = await response.json();
-    
-    // Correctly access the followerCount from the /me endpoint response
-    const followerCount = data?.data?.followerCount ?? 0;
+    if (!data.success) {
+      throw new Error(`API error fetching followers: ${JSON.stringify(data)}`);
+    }
 
-    return { count: followerCount };
+    return { count: data.total ?? 0 };
   } catch (error) {
     console.error("Error fetching initial followers:", error);
     throw new Error("Could not retrieve initial follower count.");

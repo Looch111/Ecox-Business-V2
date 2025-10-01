@@ -30,7 +30,11 @@ function PaymentStatusContent() {
     const paymentStatus = searchParams.get("status");
 
     const verifyPayment = async () => {
-      if (paymentStatus !== "successful" || !transaction_id || !tx_ref) {
+      if (
+        (paymentStatus !== "successful" && paymentStatus !== "completed") ||
+        !transaction_id ||
+        !tx_ref
+      ) {
         setStatus("failed");
         setMessage(
           "Payment was not successful or is missing required details."

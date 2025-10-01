@@ -11,8 +11,6 @@ import { useToast } from "@/hooks/use-toast";
 import Instructions from "./Instructions";
 import { hasAgreedToTerms } from "@/app/actions";
 import DepositModal from "./DepositModal";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
-
 
 interface DashboardProps {
   user: User;
@@ -82,6 +80,18 @@ export default function Dashboard({ user }: DashboardProps) {
         title: "Logout Failed",
         description: error.message,
       });
+    }
+  };
+
+  const handleDepositClick = () => {
+    if (!account) {
+      toast({
+        variant: "destructive",
+        title: "Account Required",
+        description: "Please submit an account before depositing funds.",
+      });
+    } else {
+      setIsDepositModalOpen(true);
     }
   };
 
@@ -400,28 +410,13 @@ export default function Dashboard({ user }: DashboardProps) {
             <Wallet className="h-5 w-5" />
             <span>{formattedBalance}</span>
           </div>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                {/* Wrap the disabled button in a span for the tooltip to work */}
-                <span tabIndex={account ? undefined : 0}>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setIsDepositModalOpen(true)}
-                    disabled={!account}
-                  >
-                    Deposit
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              {!account && (
-                <TooltipContent>
-                  <p>Please submit an account first.</p>
-                </TooltipContent>
-              )}
-            </Tooltip>
-          </TooltipProvider>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleDepositClick}
+          >
+            Deposit
+          </Button>
           <span className="text-sm text-muted-foreground hidden sm:inline">
             {user.email}
           </span>
@@ -459,5 +454,3 @@ export default function Dashboard({ user }: DashboardProps) {
     </>
   );
 }
-
-    

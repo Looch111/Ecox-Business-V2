@@ -9,14 +9,20 @@ import SubmittedView from "./SubmittedView";
 import { Loader2, LogOut } from "lucide-react";
 import { Button } from "../ui/button";
 import { useToast } from "@/hooks/use-toast";
+import Instructions from "./Instructions";
+import TokenGuide from "./TokenGuide";
 
 interface DashboardProps {
   user: User;
 }
 
+type OnboardingStep = "instructions" | "token_guide" | "account_form";
+
 export default function Dashboard({ user }: DashboardProps) {
   const [hasAccount, setHasAccount] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [onboardingStep, setOnboardingStep] =
+    useState<OnboardingStep>("instructions");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -60,6 +66,25 @@ export default function Dashboard({ user }: DashboardProps) {
     }
   };
 
+  const renderOnboarding = () => {
+    switch (onboardingStep) {
+      case "instructions":
+        return (
+          <Instructions
+            onNext={() => setOnboardingStep("token_guide")}
+          />
+        );
+      case "token_guide":
+        return (
+          <TokenGuide
+            onNext={() => setOnboardingStep("account_form")}
+          />
+        );
+      case "account_form":
+        return <AccountForm user={user} />;
+    }
+  };
+
   return (
     <div className="w-full max-w-5xl mx-auto flex flex-col min-h-screen p-4 sm:p-6 md:p-8">
       <header className="flex items-center justify-between py-4 px-6 bg-card/80 backdrop-blur-sm rounded-lg shadow-sm mb-8 border sticky top-4 z-10">
@@ -86,7 +111,7 @@ export default function Dashboard({ user }: DashboardProps) {
         ) : hasAccount ? (
           <SubmittedView />
         ) : (
-          <AccountForm user={user} />
+          renderOnboarding()
         )}
       </main>
 

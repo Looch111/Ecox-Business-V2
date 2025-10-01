@@ -1,3 +1,28 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "token-guide-step1",
+      "description": "A screenshot showing how to open developer tools in a browser.",
+      "imageUrl": "https://images.unsplash.com/photo-1642132652935-d750e2014719?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxkZXZlbG9wZXIlMjB0b29scyUyMGJyb3dzZXJ8ZW58MHx8fHwxNzU5Mjg5MTE2fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "developer tools browser"
+    },
+    {
+      "id": "token-guide-step2",
+      "description": "A screenshot of the network tab in developer tools, highlighting an API request.",
+      "imageUrl": "https://images.unsplash.com/photo-1736883184430-854abbfc2066?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8bmV0d29yayUyMHRhYiUyMGNvZGV8ZW58MHx8fHwxNzU5Mjg5MTE2fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "network tab code"
+    },
+    {
+      "id": "token-guide-step3",
+      "description": "A close-up of the request headers showing the Authorization bearer token.",
+      "imageUrl": "https://images.unsplash.com/photo-1610466896927-699424f3c86d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxjb2RlJTIwYXV0aGVudGljYXRpb258ZW58MHx8fHwxNzU5Mjg5MTE2fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "code authentication"
+    },
+    {
+      "id": "token-guide-step4",
+      "description": "A screenshot showing the token being copied.",
+      "imageUrl": "https://images.unsplash.com/photo-1720980741441-b00ae54be18a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8Y29kZSUyMGNvcHl8ZW58MHx8fHwxNzU5Mjg5MTE1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "code copy"
+    }
+  ]
 }

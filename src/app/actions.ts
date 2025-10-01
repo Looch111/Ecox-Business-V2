@@ -6,7 +6,14 @@ import {
   type SuggestTargetUsernamesInput,
 } from "@/ai/flows/suggest-target-usernames";
 import { db } from "@/lib/firebase";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  serverTimestamp,
+  setDoc,
+} from "firebase/firestore";
 
 const accountSchema = z.object({
   uid: z.string(),
@@ -77,18 +84,52 @@ export async function getInitialFollowers(
     );
 
     if (!response.ok) {
-       const errorData = await response.json().catch(() => ({ message: 'Could not parse error response.' }));
-       const errorMessage = errorData.message || `API Error: ${response.status}`;
+      const errorData = await response
+        .json()
+        .catch(() => ({ message: "Could not parse error response." }));
+      const errorMessage = errorData.message || `API Error: ${response.status}`;
       throw new Error(errorMessage);
     }
 
     const data = await response.json();
-    
+
     // The total is a top-level property in the response
     return { count: data.total ?? 0 };
-
   } catch (error: any) {
     console.error("Error fetching initial followers:", error);
-    throw new Error(error.message || "Could not retrieve initial follower count.");
+    throw new Error(
+      error.message || "Could not retrieve initial follower count."
+    );
+  }
+}
+
+export async function agreeToTerms(
+  uid: string
+): Promise<{ success: boolean }> {
+  if (!uid) {
+    throw new Error("User ID is required.");
+  }
+  try {
+    await setDoc(doc(db, "users", uid), { hasAgreedToTerms: true }, { merge: true });
+    return { success: true };
+  } catch (error: any) {
+    console.error("Failed to update user terms agreement:", error);
+    throw new Error("Could not save terms agreement.");
+  }
+}
+
+export async function hasAgreedToTerms(
+  uid: string
+): Promise<{ hasAgreed: boolean }> {
+  if (!uid) {
+    return { hasAgreed: false };
+  }
+  try {
+    const userDoc = await getDoc(doc(db, "users", uid));
+    return { hasAgreed: userDoc.exists() && userDoc.data().hasAgreedToTerms === true };
+  } catch (error) {
+    console.error("Failed to check user terms agreement:", error);
+    // Default to not agreed on error to be safe
+    return { hasAgreed: false };
   }
 }

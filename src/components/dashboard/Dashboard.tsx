@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import Instructions from "./Instructions";
 import TokenGuide from "./TokenGuide";
 import KiwiGuide from "./KiwiGuide";
+import { hasAgreedToTerms } from "@/app/actions";
 
 interface DashboardProps {
   user: User;
@@ -35,6 +36,16 @@ export default function Dashboard({ user }: DashboardProps) {
       setLoading(false);
       return;
     }
+
+    const checkAgreement = async () => {
+      const { hasAgreed } = await hasAgreedToTerms(user.uid);
+      if (hasAgreed) {
+        setOnboardingStep("kiwi_guide");
+      }
+    };
+    
+    checkAgreement();
+
     const q = query(collection(db, "accounts"), where("uid", "==", user.uid));
     const unsubscribe = onSnapshot(
       q,
@@ -74,7 +85,12 @@ export default function Dashboard({ user }: DashboardProps) {
   const renderOnboarding = () => {
     switch (onboardingStep) {
       case "instructions":
-        return <Instructions onNext={() => setOnboardingStep("kiwi_guide")} />;
+        return (
+          <Instructions
+            user={user}
+            onNext={() => setOnboardingStep("kiwi_guide")}
+          />
+        );
       case "kiwi_guide":
         return <KiwiGuide onNext={() => setOnboardingStep("token_guide")} />;
       case "token_guide":

@@ -10,38 +10,47 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Label } from "../ui/label";
+import { type User } from "firebase/auth";
+import { agreeToTerms } from "@/app/actions";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
 
 interface InstructionsProps {
+  user: User;
   onNext: () => void;
 }
 
-const TERMS_AGREED_KEY = "hasAgreedToTerms";
-
-export default function Instructions({ onNext }: InstructionsProps) {
+export default function Instructions({ user, onNext }: InstructionsProps) {
   const [agreed, setAgreed] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
-  useEffect(() => {
-    // Check if the user has already agreed. If so, skip this step.
-    if (localStorage.getItem(TERMS_AGREED_KEY) === "true") {
-      onNext();
+  const handleAgreeAndContinue = async () => {
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "You must be logged in to agree to the terms.",
+      });
+      return;
     }
-  }, [onNext]);
-
-  const handleAgreeAndContinue = () => {
-    // Save the agreement to localStorage before proceeding.
-    localStorage.setItem(TERMS_AGREED_KEY, "true");
-    onNext();
+    setIsLoading(true);
+    try {
+      await agreeToTerms(user.uid);
+      onNext();
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description:
+          error.message || "Could not save your agreement. Please try again.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
-
-  // If already agreed, this component will be blank for a moment before skipping.
-  if (
-    typeof window !== "undefined" &&
-    localStorage.getItem(TERMS_AGREED_KEY) === "true"
-  ) {
-    return null; // Render nothing while the useEffect triggers the redirect
-  }
 
   return (
     <div className="flex items-start justify-center pt-10 animate-fade-in-up">
@@ -97,7 +106,11 @@ export default function Instructions({ onNext }: InstructionsProps) {
           </div>
         </CardContent>
         <CardFooter>
-          <Button onClick={handleAgreeAndContinue} disabled={!agreed}>
+          <Button
+            onClick={handleAgreeAndContinue}
+            disabled={!agreed || isLoading}
+          >
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Agree & Continue
           </Button>
         </CardFooter>

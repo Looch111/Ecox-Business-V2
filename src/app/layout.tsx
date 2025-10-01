@@ -6,6 +6,7 @@ import Script from "next/script";
 export const metadata: Metadata = {
   title: "Ecox User Hub",
   description: "Submit your account details and grow your reach.",
+  themeColor: "#0a0a0a",
 };
 
 export default function RootLayout({

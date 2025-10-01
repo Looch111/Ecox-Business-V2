@@ -12,10 +12,10 @@ const accountSchema = z.object({
   uid: z.string(),
   name: z.string().min(2),
   bearerToken: z.string().min(10),
-  desiredFollowers: z.number().min(0),
   targets: z.string().optional(),
   followerTarget: z.number().min(0),
   enableFollowBackGoal: z.boolean(),
+  initialFollowers: z.number().min(0),
 });
 
 export async function addAccount(data: z.infer<typeof accountSchema>) {
@@ -28,10 +28,10 @@ export async function addAccount(data: z.infer<typeof accountSchema>) {
     uid,
     name,
     bearerToken,
-    desiredFollowers,
     targets,
     followerTarget,
     enableFollowBackGoal,
+    initialFollowers,
   } = validatedData.data;
 
   try {
@@ -39,7 +39,6 @@ export async function addAccount(data: z.infer<typeof accountSchema>) {
       uid,
       name,
       bearerToken,
-      desiredFollowers,
       active: true,
       targetUsernames: targets
         ? targets
@@ -49,6 +48,7 @@ export async function addAccount(data: z.infer<typeof accountSchema>) {
         : [],
       followerTarget,
       enableFollowBackGoal,
+      initialFollowers,
       createdAt: serverTimestamp(),
     });
     return { success: true };
@@ -66,5 +66,35 @@ export async function getUsernameSuggestions(
   } catch (error) {
     console.error("AI suggestion error:", error);
     throw new Error("Could not fetch AI suggestions.");
+  }
+}
+
+export async function getInitialFollowers(
+  bearerToken: string
+): Promise<{ count: number }> {
+  try {
+    const response = await fetch(
+      "https://api.ecox.network/api/v1/user/list-follow?offset=1&limit=1&type=follower",
+      {
+        headers: {
+          Authorization: `Bearer ${bearerToken}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch follower data from Ecox API.");
+    }
+
+    const data = await response.json();
+
+    // Assuming the total count is in a 'total' property in the response data.
+    // Adjust if the API response structure is different.
+    const followerCount = data?.data?.total ?? 0;
+
+    return { count: followerCount };
+  } catch (error) {
+    console.error("Error fetching initial followers:", error);
+    throw new Error("Could not retrieve initial follower count.");
   }
 }

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { User } from "firebase/auth";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
@@ -26,7 +26,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, Sparkles } from "lucide-react";
-import { addAccount, getUsernameSuggestions } from "@/app/actions";
+import {
+  addAccount,
+  getInitialFollowers,
+  getUsernameSuggestions,
+} from "@/app/actions";
 import { Textarea } from "../ui/textarea";
 import { Switch } from "../ui/switch";
 
@@ -43,6 +47,7 @@ const accountFormSchema = z.object({
     .min(0, { message: "Must be a positive number" })
     .default(1),
   enableFollowBackGoal: z.boolean().default(true),
+  initialFollowers: z.number().min(0).default(0),
 });
 
 type AccountFormValues = z.infer<typeof accountFormSchema>;
@@ -54,6 +59,7 @@ interface AccountFormProps {
 export default function AccountForm({ user }: AccountFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
+  const [isFetchingFollowers, setIsFetchingFollowers] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<AccountFormValues>({
@@ -64,8 +70,42 @@ export default function AccountForm({ user }: AccountFormProps) {
       targets: "",
       followerTarget: 1,
       enableFollowBackGoal: true,
+      initialFollowers: 0,
     },
   });
+
+  const bearerTokenValue = useWatch({
+    control: form.control,
+    name: "bearerToken",
+  });
+
+  useEffect(() => {
+    const fetchFollowers = async () => {
+      if (bearerTokenValue && bearerTokenValue.length >= 10) {
+        setIsFetchingFollowers(true);
+        try {
+          const { count } = await getInitialFollowers(bearerTokenValue);
+          form.setValue("initialFollowers", count, { shouldValidate: true });
+          toast({
+            title: "Followers Fetched",
+            description: `Initial follower count set to ${count}.`,
+          });
+        } catch (error: any) {
+          toast({
+            variant: "destructive",
+            title: "Failed to Fetch Followers",
+            description: error.message,
+          });
+          form.setValue("initialFollowers", 0);
+        } finally {
+          setIsFetchingFollowers(false);
+        }
+      }
+    };
+
+    const timeoutId = setTimeout(fetchFollowers, 500); // Debounce API call
+    return () => clearTimeout(timeoutId);
+  }, [bearerTokenValue, form, toast]);
 
   const handleSuggestUsernames = async () => {
     const accountName = form.getValues("name");
@@ -108,7 +148,6 @@ export default function AccountForm({ user }: AccountFormProps) {
     try {
       await addAccount({
         ...values,
-        desiredFollowers: 0, // Keep for backend compatibility, but not in form
         uid: user.uid,
       });
       toast({
@@ -157,11 +196,16 @@ export default function AccountForm({ user }: AccountFormProps) {
                 <FormItem>
                   <FormLabel>Bearer Token</FormLabel>
                   <FormControl>
-                    <Input
-                      type="password"
-                      placeholder="Enter your secret token"
-                      {...field}
-                    />
+                    <div className="relative">
+                      <Input
+                        type="password"
+                        placeholder="Enter your secret token"
+                        {...field}
+                      />
+                      {isFetchingFollowers && (
+                         <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin" />
+                      )}
+                    </div>
                   </FormControl>
                   <FormDescription>
                     Your token is stored securely and is never shared.
@@ -170,7 +214,7 @@ export default function AccountForm({ user }: AccountFormProps) {
                 </FormItem>
               )}
             />
-             <FormField
+            <FormField
               control={form.control}
               name="followerTarget"
               render={({ field }) => (
@@ -179,7 +223,7 @@ export default function AccountForm({ user }: AccountFormProps) {
                   <FormControl>
                     <Input type="number" placeholder="1" {...field} />
                   </FormControl>
-                   <FormDescription>
+                  <FormDescription>
                     Number of followers to target.
                   </FormDescription>
                   <FormMessage />
@@ -196,7 +240,7 @@ export default function AccountForm({ user }: AccountFormProps) {
                       Enable Follow Back Goal
                     </FormLabel>
                     <FormDescription>
-                      Enable this to set a follow back goal.
+                      This is enabled by default and cannot be changed.
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -204,6 +248,7 @@ export default function AccountForm({ user }: AccountFormProps) {
                       checked={field.value}
                       onCheckedChange={field.onChange}
                       disabled
+                      aria-readonly
                     />
                   </FormControl>
                 </FormItem>

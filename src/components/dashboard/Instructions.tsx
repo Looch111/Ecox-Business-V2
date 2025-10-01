@@ -10,15 +10,38 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Label } from "../ui/label";
 
 interface InstructionsProps {
   onNext: () => void;
 }
 
+const TERMS_AGREED_KEY = "hasAgreedToTerms";
+
 export default function Instructions({ onNext }: InstructionsProps) {
   const [agreed, setAgreed] = useState(false);
+
+  useEffect(() => {
+    // Check if the user has already agreed. If so, skip this step.
+    if (localStorage.getItem(TERMS_AGREED_KEY) === "true") {
+      onNext();
+    }
+  }, [onNext]);
+
+  const handleAgreeAndContinue = () => {
+    // Save the agreement to localStorage before proceeding.
+    localStorage.setItem(TERMS_AGREED_KEY, "true");
+    onNext();
+  };
+
+  // If already agreed, this component will be blank for a moment before skipping.
+  if (
+    typeof window !== "undefined" &&
+    localStorage.getItem(TERMS_AGREED_KEY) === "true"
+  ) {
+    return null; // Render nothing while the useEffect triggers the redirect
+  }
 
   return (
     <div className="flex items-start justify-center pt-10 animate-fade-in-up">
@@ -74,7 +97,7 @@ export default function Instructions({ onNext }: InstructionsProps) {
           </div>
         </CardContent>
         <CardFooter>
-          <Button onClick={onNext} disabled={!agreed}>
+          <Button onClick={handleAgreeAndContinue} disabled={!agreed}>
             Agree & Continue
           </Button>
         </CardFooter>

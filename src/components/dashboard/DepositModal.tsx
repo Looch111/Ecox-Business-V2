@@ -83,28 +83,35 @@ export default function DepositModal({
 
   async function onSubmit(values: DepositFormValues) {
     setIsSubmitting(true);
-    // Store amount in local storage to retrieve on the redirect page
     localStorage.setItem(`tx_amount_${tx_ref}`, String(values.amount));
+
+    // Manually construct the URL
+    const paymentUrl = new URL('https://checkout.flutterwave.com/v3/hosted/pay');
+    const params = {
+      public_key: flutterwaveConfig.public_key,
+      tx_ref: flutterwaveConfig.tx_ref,
+      amount: String(flutterwaveConfig.amount),
+      currency: flutterwaveConfig.currency,
+      payment_options: flutterwaveConfig.payment_options,
+      redirect_url: flutterwaveConfig.redirect_url,
+      'customer[email]': flutterwaveConfig.customer.email,
+      'customer[name]': flutterwaveConfig.customer.name,
+      'customizations[title]': flutterwaveConfig.customizations.title,
+      'customizations[description]': flutterwaveConfig.customizations.description,
+      'customizations[logo]': flutterwaveConfig.customizations.logo,
+    };
     
-    handleFlutterwavePayment({
-      callback: (response) => {
-        // This callback is for redirect flow, but we can still log errors if any
-        if (response.status !== "successful") {
-            toast({
-                variant: "destructive",
-                title: "Payment Initialization Failed",
-                description: "Could not redirect to payment page. Please try again.",
-            });
-        }
-        // Don't close modal, redirect will happen.
-        // We don't call verification here anymore.
-        closePaymentModal(); 
-        setIsSubmitting(false);
-      },
-      onClose: () => {
-        setIsSubmitting(false);
-      },
-    });
+    for (const [key, value] of Object.entries(params)) {
+      if (value) {
+        paymentUrl.searchParams.set(key, value);
+      }
+    }
+    
+    // Open in a new tab
+    window.open(paymentUrl.toString(), '_blank');
+
+    onClose();
+    setIsSubmitting(false);
   }
 
   return (

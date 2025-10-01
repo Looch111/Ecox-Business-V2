@@ -10,13 +10,16 @@ import { Button } from "../ui/button";
 import { useToast } from "@/hooks/use-toast";
 import Instructions from "./Instructions";
 import { hasAgreedToTerms } from "@/app/actions";
-import DepositModal from "./DepositModal";
+import DepositForm from "./DepositForm";
+import { useFlutterwave } from "flutterwave-react-v3";
 
 interface DashboardProps {
   user: User;
 }
 
 type OnboardingStep = "instructions" | "account_form";
+type MainView = "onboarding" | "form" | "deposit";
+
 
 export default function Dashboard({ user }: DashboardProps) {
   const [account, setAccount] = useState<DocumentData | null>(null);
@@ -24,7 +27,8 @@ export default function Dashboard({ user }: DashboardProps) {
   const [loading, setLoading] = useState(true);
   const [onboardingStep, setOnboardingStep] =
     useState<OnboardingStep>("instructions");
-  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+  const [mainView, setMainView] = useState<MainView>("onboarding");
+
   const { toast } = useToast();
 
   useEffect(() => {
@@ -37,21 +41,23 @@ export default function Dashboard({ user }: DashboardProps) {
       const { hasAgreed } = await hasAgreedToTerms(user.uid);
       if (hasAgreed) {
         setOnboardingStep("account_form");
+        setMainView("form");
       }
       setLoading(false); 
     };
 
-    // Listener for user profile (for balance)
     const userDocRef = doc(db, "users", user.uid);
     const unsubscribeUser = onSnapshot(userDocRef, (doc) => {
       if (doc.exists()) {
         setUserProfile(doc.data());
+        if (doc.data().hasAgreedToTerms) {
+          setMainView("form");
+        }
       } else {
         setUserProfile({ balance: 0, hasAgreedToTerms: false });
       }
     });
 
-    // Listener for account submission
     const q = query(collection(db, "accounts"), where("uid", "==", user.uid));
     const unsubscribeAccounts = onSnapshot(
       q,
@@ -62,7 +68,9 @@ export default function Dashboard({ user }: DashboardProps) {
           setAccount(accountData);
         } else {
           setAccount(null);
-          checkAgreement();
+          if (!userProfile?.hasAgreedToTerms) {
+             checkAgreement();
+          }
         }
         setLoading(false);
       },
@@ -81,7 +89,7 @@ export default function Dashboard({ user }: DashboardProps) {
       unsubscribeUser();
       unsubscribeAccounts();
     };
-  }, [user, toast]);
+  }, [user, toast, userProfile?.hasAgreedToTerms]);
 
   const handleLogout = async () => {
     try {
@@ -99,23 +107,42 @@ export default function Dashboard({ user }: DashboardProps) {
     }
   };
 
-  const handleDepositClick = () => {
-    setIsDepositModalOpen(true);
-  };
-
   const renderOnboarding = () => {
     switch (onboardingStep) {
       case "instructions":
         return (
           <Instructions
             user={user}
-            onNext={() => setOnboardingStep("account_form")}
+            onNext={() => {
+              setOnboardingStep("account_form");
+              setMainView("form");
+            }}
           />
         );
       case "account_form":
         return <AccountForm user={user} balance={userProfile?.balance || 0} />;
     }
   };
+
+  const renderMainView = () => {
+    if (loading) {
+       return (
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        );
+    }
+
+    if(mainView === 'deposit') {
+      return <DepositForm user={user} onShowForm={() => setMainView('form')} />;
+    }
+
+    if (account) {
+       return <AccountForm user={user} balance={balance} />;
+    }
+    
+    return renderOnboarding();
+  }
   
   const balance = userProfile?.balance ?? 0;
   const formattedBalance = new Intl.NumberFormat("en-NG", {
@@ -421,7 +448,7 @@ export default function Dashboard({ user }: DashboardProps) {
           <Button
             variant="secondary"
             size="sm"
-            onClick={handleDepositClick}
+            onClick={() => setMainView('deposit')}
           >
             Deposit
           </Button>
@@ -436,26 +463,13 @@ export default function Dashboard({ user }: DashboardProps) {
       </header>
 
       <main className="flex-grow">
-        {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : account ? (
-          <AccountForm user={user} balance={balance} />
-        ) : (
-          renderOnboarding()
-        )}
+        {renderMainView()}
       </main>
 
       <footer className="text-center py-4 text-sm text-muted-foreground mt-8">
         © {new Date().getFullYear()} Ecox. All rights reserved.
       </footer>
     </div>
-    <DepositModal
-      isOpen={isDepositModalOpen}
-      onClose={() => setIsDepositModalOpen(false)}
-      user={user}
-    />
     </>
   );
 }

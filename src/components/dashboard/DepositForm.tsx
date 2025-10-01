@@ -8,13 +8,13 @@ import { useFlutterwave, closePaymentModal } from "flutterwave-react-v3";
 import type { User } from "firebase/auth";
 
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -27,7 +27,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-import { verifyFlutterwaveTransaction } from "@/app/actions";
 
 const depositSchema = z.object({
   amount: z.coerce
@@ -37,17 +36,15 @@ const depositSchema = z.object({
 
 type DepositFormValues = z.infer<typeof depositSchema>;
 
-interface DepositModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+interface DepositFormProps {
   user: User;
+  onShowForm: () => void;
 }
 
-export default function DepositModal({
-  isOpen,
-  onClose,
+export default function DepositForm({
   user,
-}: DepositModalProps) {
+  onShowForm,
+}: DepositFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
@@ -85,43 +82,55 @@ export default function DepositModal({
     setIsSubmitting(true);
     localStorage.setItem(`tx_amount_${tx_ref}`, String(values.amount));
     
+    // Hand off to flutterwave
     handleFlutterwavePayment({
       callback: (response) => {
-        // The redirect_url will handle verification. This callback is for cleanup.
-        closePaymentModal(); 
+        closePaymentModal(); // Close the flutterwave modal
         setIsSubmitting(false);
+        onShowForm(); // Close our app's deposit form view
+        
+        // The redirect_url will handle verification, but we can toast on failure.
+        if (response.status !== "successful" && response.status !== "completed") {
+            toast({
+                variant: "destructive",
+                title: "Payment Not Completed",
+                description: "Your payment was not completed successfully.",
+            });
+        }
       },
       onClose: () => {
         setIsSubmitting(false);
+        onShowForm();
       },
     });
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[90vw] max-w-lg rounded-lg px-6">
-        <DialogHeader>
-          <DialogTitle>Deposit Funds</DialogTitle>
-          <DialogDescription>
+      <Card className="w-full max-w-2xl mx-auto shadow-lg animate-fade-in-up border">
+        <CardHeader>
+          <CardTitle>Deposit Funds</CardTitle>
+          <CardDescription>
             Add funds to your account balance. This balance will be used to pay for account submissions.
-          </DialogDescription>
-        </DialogHeader>
+          </CardDescription>
+        </CardHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="amount"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Amount (NGN)</FormLabel>
-                  <FormControl>
-                    <Input type="number" placeholder="1000" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <DialogFooter>
+            <CardContent>
+              <FormField
+                control={form.control}
+                name="amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Amount (NGN)</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="1000" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+            <CardFooter className="flex-col gap-4">
               <Button
                 type="submit"
                 className="w-full"
@@ -132,10 +141,16 @@ export default function DepositModal({
                 )}
                 Pay ₦{amount || 0} with Flutterwave
               </Button>
-            </DialogFooter>
+               <Button
+                variant="outline"
+                className="w-full"
+                onClick={onShowForm}
+              >
+                Back to Account Form
+              </Button>
+            </CardFooter>
           </form>
         </Form>
-      </DialogContent>
-    </Dialog>
+      </Card>
   );
 }

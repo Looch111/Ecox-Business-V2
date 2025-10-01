@@ -12,6 +12,7 @@ import Instructions from "./Instructions";
 import { hasAgreedToTerms } from "@/app/actions";
 import DepositForm from "./DepositForm";
 import { useFlutterwave } from "flutterwave-react-v3";
+import AccountStatus from "./AccountStatus";
 
 interface DashboardProps {
   user: User;
@@ -138,7 +139,7 @@ export default function Dashboard({ user }: DashboardProps) {
     }
 
     if (account) {
-       return <AccountForm user={user} balance={balance} />;
+       return <AccountStatus account={account} />;
     }
     
     return renderOnboarding();

@@ -17,14 +17,8 @@ interface TokenGuideProps {
 export default function TokenGuide({ onNext }: TokenGuideProps) {
   return (
     <div className="flex items-start justify-center pt-10 animate-fade-in-up">
-      <Card className="w-full max-w-2xl shadow-lg border">
-        <CardHeader>
-          <CardTitle>How to Get Your Bearer Token</CardTitle>
-          <CardDescription>
-            Watch the video below to find the required token from your account.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+      <Card className="w-full max-w-2xl shadow-none border-none">
+        <CardContent className="pt-6">
           <div className="w-full aspect-video bg-muted rounded-lg overflow-hidden relative">
             <video
               className="w-full h-full object-cover"
@@ -37,15 +31,16 @@ export default function TokenGuide({ onNext }: TokenGuideProps) {
               Your browser does not support the video tag.
             </video>
           </div>
-           <div className="prose dark:prose-invert max-w-none text-sm text-muted-foreground space-y-2 mt-4">
-              <p>
-                The video above demonstrates how to find your bearer token using your browser's developer tools. 
-                You will need to copy this token and paste it into the form on the next page.
-              </p>
+          <div className="prose dark:prose-invert max-w-none text-sm text-muted-foreground space-y-2 mt-4">
+            <p>
+              The video above demonstrates how to find your bearer token using
+              your browser's developer tools. You will need to copy this token
+              and paste it into the form on the next page.
+            </p>
           </div>
         </CardContent>
         <CardFooter className="flex justify-end">
-          <Button onClick={onNext}>I Have My Token, Continue</Button>
+          <Button onClick={onNext}>I Have My Token, Close</Button>
         </CardFooter>
       </Card>
     </div>

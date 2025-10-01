@@ -10,19 +10,13 @@ import { Loader2, LogOut } from "lucide-react";
 import { Button } from "../ui/button";
 import { useToast } from "@/hooks/use-toast";
 import Instructions from "./Instructions";
-import TokenGuide from "./TokenGuide";
-import KiwiGuide from "./KiwiGuide";
 import { hasAgreedToTerms } from "@/app/actions";
 
 interface DashboardProps {
   user: User;
 }
 
-type OnboardingStep =
-  | "instructions"
-  | "kiwi_guide"
-  | "token_guide"
-  | "account_form";
+type OnboardingStep = "instructions" | "account_form";
 
 export default function Dashboard({ user }: DashboardProps) {
   const [hasAccount, setHasAccount] = useState(false);
@@ -40,7 +34,7 @@ export default function Dashboard({ user }: DashboardProps) {
     const checkAgreement = async () => {
       const { hasAgreed } = await hasAgreedToTerms(user.uid);
       if (hasAgreed) {
-        setOnboardingStep("kiwi_guide");
+        setOnboardingStep("account_form");
       }
     };
     
@@ -88,13 +82,9 @@ export default function Dashboard({ user }: DashboardProps) {
         return (
           <Instructions
             user={user}
-            onNext={() => setOnboardingStep("kiwi_guide")}
+            onNext={() => setOnboardingStep("account_form")}
           />
         );
-      case "kiwi_guide":
-        return <KiwiGuide onNext={() => setOnboardingStep("token_guide")} />;
-      case "token_guide":
-        return <TokenGuide onNext={() => setOnboardingStep("account_form")} />;
       case "account_form":
         return <AccountForm user={user} />;
     }

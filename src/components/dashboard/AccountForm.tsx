@@ -25,9 +25,10 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { HelpCircle, Loader2 } from "lucide-react";
 import { addAccount, getInitialFollowers } from "@/app/actions";
 import { Switch } from "../ui/switch";
+import { KiwiGuideSheet, TokenGuideSheet } from "./Guides";
 
 const accountFormSchema = z.object({
   name: z.string().min(2, {
@@ -52,6 +53,8 @@ interface AccountFormProps {
 export default function AccountForm({ user }: AccountFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFetchingFollowers, setIsFetchingFollowers] = useState(false);
+  const [isKiwiGuideOpen, setIsKiwiGuideOpen] = useState(false);
+  const [isTokenGuideOpen, setIsTokenGuideOpen] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<AccountFormValues>({
@@ -126,109 +129,141 @@ export default function AccountForm({ user }: AccountFormProps) {
   }
 
   return (
-    <Card className="w-full max-w-2xl mx-auto shadow-lg animate-fade-in-up border">
-      <CardHeader>
-        <CardTitle>Add Your Account</CardTitle>
-        <CardDescription>
-          Fill in your account details to get started.
-        </CardDescription>
-      </CardHeader>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-          <CardContent className="space-y-6">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Account Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., My Awesome Brand" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="bearerToken"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Bearer Token</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <Input
-                        type="password"
-                        placeholder="Enter your secret token"
-                        {...field}
-                      />
-                      {isFetchingFollowers && (
-                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin" />
-                      )}
+    <>
+      <Card className="w-full max-w-2xl mx-auto shadow-lg animate-fade-in-up border">
+        <CardHeader>
+          <CardTitle>Add Your Account</CardTitle>
+          <CardDescription>
+            Fill in your account details to get started. Need help? Use the
+            guides below.
+          </CardDescription>
+        </CardHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <CardContent className="space-y-6">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Account Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., My Awesome Brand" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="bearerToken"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex items-center justify-between">
+                      <FormLabel>Bearer Token</FormLabel>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIsKiwiGuideOpen(true)}
+                          className="gap-1.5 text-xs px-2"
+                        >
+                          <HelpCircle className="h-4 w-4" />
+                          Kiwi Guide
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIsTokenGuideOpen(true)}
+                          className="gap-1.5 text-xs px-2"
+                        >
+                          <HelpCircle className="h-4 w-4" />
+                          Token Guide
+                        </Button>
+                      </div>
                     </div>
-                  </FormControl>
-                  <FormDescription>
-                    Your token is stored securely and is never shared.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="followerTarget"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Follower Growth Target</FormLabel>
-                  <FormControl>
-                    <Input type="number" placeholder="100" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    Enter the number of new followers you want to gain. Your
-                    current follower count is{" "}
-                    {form.getValues("initialFollowers")}.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="enableFollowBackGoal"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base">
-                      Enable Follow Back Goal
-                    </FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          type="password"
+                          placeholder="Enter your secret token"
+                          {...field}
+                        />
+                        {isFetchingFollowers && (
+                          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin" />
+                        )}
+                      </div>
+                    </FormControl>
                     <FormDescription>
-                      This is enabled by default and cannot be changed.
+                      Your token is stored securely and is never shared.
                     </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      disabled
-                      aria-readonly
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-          </CardContent>
-          <CardFooter>
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Submit Account
-            </Button>
-          </CardFooter>
-        </form>
-      </Form>
-    </Card>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="followerTarget"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Follower Growth Target</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="100" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Enter the number of new followers you want to gain. Your
+                      current follower count is{" "}
+                      {form.getValues("initialFollowers")}.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="enableFollowBackGoal"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">
+                        Enable Follow Back Goal
+                      </FormLabel>
+                      <FormDescription>
+                        This is enabled by default and cannot be changed.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        disabled
+                        aria-readonly
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+            <CardFooter>
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Submit Account
+              </Button>
+            </CardFooter>
+          </form>
+        </Form>
+      </Card>
+      <KiwiGuideSheet open={isKiwiGuideOpen} onOpenChange={setIsKiwiGuideOpen} />
+      <TokenGuideSheet
+        open={isTokenGuideOpen}
+        onOpenChange={setIsTokenGuideOpen}
+      />
+    </>
   );
 }

@@ -92,7 +92,7 @@ export default function AccountForm({ user }: AccountFormProps) {
   });
 
   useEffect(() => {
-    if (searchParams.get("payment") === "successful") {
+    if (searchParams.get("status") === "successful") {
       setPaymentSuccessful(true);
       toast({
         title: "Payment Confirmed!",
@@ -111,6 +111,7 @@ export default function AccountForm({ user }: AccountFormProps) {
     amount: paymentAmount,
     currency: "NGN",
     payment_options: "card,mobilemoney,ussd",
+    redirect_url: `${window.location.origin}/?payment=complete`,
     customer: {
       email: user.email!,
       name: form.getValues("name") || "Ecox User",
@@ -297,23 +298,15 @@ export default function AccountForm({ user }: AccountFormProps) {
                 }
                 handleFlutterwavePayment({
                   callback: (response) => {
-                    if (response.status === "successful") {
-                      window.location.href = '/?payment=successful';
-                    } else {
-                      toast({
-                        variant: "destructive",
-                        title: "Payment Failed",
-                        description:
-                          "Your payment was not successful. Please try again.",
-                      });
-                    }
-                    closePaymentModal();
+                     // This callback is executed when the user is redirected back to the app.
+                     // The logic is now handled by the useEffect hook that checks URL params.
+                    closePaymentModal(); // close the modal immediately
                   },
                   onClose: () => {
                      toast({
                         title: "Payment Modal Closed",
                         description:
-                          "If payment failed, please refresh the page and try again.",
+                          "If payment was not completed, you can try again.",
                       });
                   },
                 });

@@ -11,12 +11,13 @@ import { Button } from "../ui/button";
 import { useToast } from "@/hooks/use-toast";
 import Instructions from "./Instructions";
 import TokenGuide from "./TokenGuide";
+import KiwiGuide from "./KiwiGuide";
 
 interface DashboardProps {
   user: User;
 }
 
-type OnboardingStep = "instructions" | "token_guide" | "account_form";
+type OnboardingStep = "instructions" | "kiwi_guide" | "token_guide" | "account_form";
 
 export default function Dashboard({ user }: DashboardProps) {
   const [hasAccount, setHasAccount] = useState(false);
@@ -71,6 +72,12 @@ export default function Dashboard({ user }: DashboardProps) {
       case "instructions":
         return (
           <Instructions
+            onNext={() => setOnboardingStep("kiwi_guide")}
+          />
+        );
+      case "kiwi_guide":
+        return (
+          <KiwiGuide
             onNext={() => setOnboardingStep("token_guide")}
           />
         );

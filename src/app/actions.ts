@@ -77,7 +77,9 @@ export async function getInitialFollowers(
     );
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch followers: ${response.status}`);
+       const errorData = await response.json().catch(() => ({ message: 'Could not parse error response.' }));
+       const errorMessage = errorData.message || `API Error: ${response.status}`;
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
@@ -85,8 +87,8 @@ export async function getInitialFollowers(
     // The total is a top-level property in the response
     return { count: data.total ?? 0 };
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching initial followers:", error);
-    throw new Error("Could not retrieve initial follower count.");
+    throw new Error(error.message || "Could not retrieve initial follower count.");
   }
 }

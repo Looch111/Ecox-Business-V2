@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Toaster } from "@/components/ui/toaster";
 import "./globals.css";
+import Script from "next/script";
 
 export const metadata: Metadata = {
   title: "Ecox User Hub",
@@ -43,6 +44,7 @@ export default function RootLayout({
       <body className="font-body antialiased">
         {children}
         <Toaster />
+        <Script src="https://checkout.flutterwave.com/v3.js" />
       </body>
     </html>
   );

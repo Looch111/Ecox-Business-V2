@@ -26,11 +26,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import {
-  addAccount,
-  getInitialFollowers,
-} from "@/app/actions";
+import { addAccount, getInitialFollowers } from "@/app/actions";
 import { Switch } from "../ui/switch";
+import { useFlutterwave, closePaymentModal } from "flutterwave-react-v3";
 
 const accountFormSchema = z.object({
   name: z.string().min(2, {
@@ -57,9 +55,12 @@ interface AccountFormProps {
   user: User;
 }
 
+const NAIRA_PER_FOLLOWER = 2.6;
+
 export default function AccountForm({ user }: AccountFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFetchingFollowers, setIsFetchingFollowers] = useState(false);
+  const [paymentSuccessful, setPaymentSuccessful] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<AccountFormValues>({
@@ -78,15 +79,41 @@ export default function AccountForm({ user }: AccountFormProps) {
     control: form.control,
     name: "bearerToken",
   });
-  const initialFollowers = useWatch({ control: form.control, name: "initialFollowers" });
-  const additionalFollowers = useWatch({ control: form.control, name: "additionalFollowers" });
+  const initialFollowers = useWatch({
+    control: form.control,
+    name: "initialFollowers",
+  });
+  const additionalFollowers = useWatch({
+    control: form.control,
+    name: "additionalFollowers",
+  });
 
+  const paymentAmount = additionalFollowers * NAIRA_PER_FOLLOWER;
+
+  const flutterwaveConfig = {
+    public_key: process.env.NEXT_PUBLIC_FLUTTERWAVE_PUBLIC_KEY || "FLWPUBK_TEST-b51f89312c8b7c3d7e5e3b5e4a8a8c9c-X", // Default to test key
+    tx_ref: `ecox-${Date.now()}-${user.uid}`,
+    amount: paymentAmount,
+    currency: "NGN",
+    payment_options: "card,mobilemoney,ussd",
+    customer: {
+      email: user.email!,
+      name: form.getValues("name") || "Ecox User",
+    },
+    customizations: {
+      title: "Ecox Follower Growth",
+      description: `Payment for ${additionalFollowers} additional followers`,
+      logo: "https://i.imgur.com/ofWHc95.png",
+    },
+  };
+
+  const handleFlutterwavePayment = useFlutterwave(flutterwaveConfig);
 
   useEffect(() => {
-    const newFollowerTarget = (initialFollowers || 0) + (additionalFollowers || 0);
+    const newFollowerTarget =
+      (initialFollowers || 0) + (additionalFollowers || 0);
     form.setValue("followerTarget", newFollowerTarget);
   }, [initialFollowers, additionalFollowers, form]);
-
 
   useEffect(() => {
     const fetchFollowers = async () => {
@@ -112,7 +139,7 @@ export default function AccountForm({ user }: AccountFormProps) {
       }
     };
 
-    const timeoutId = setTimeout(fetchFollowers, 500); // Debounce API call
+    const timeoutId = setTimeout(fetchFollowers, 500);
     return () => clearTimeout(timeoutId);
   }, [bearerTokenValue, form, toast]);
 
@@ -143,7 +170,7 @@ export default function AccountForm({ user }: AccountFormProps) {
       <CardHeader>
         <CardTitle>Add Your Account</CardTitle>
         <CardDescription>
-          Fill in your account details below. This can only be done once.
+          Fill in your account details, complete payment, and then submit.
         </CardDescription>
       </CardHeader>
       <Form {...form}>
@@ -176,7 +203,7 @@ export default function AccountForm({ user }: AccountFormProps) {
                         {...field}
                       />
                       {isFetchingFollowers && (
-                         <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin" />
+                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin" />
                       )}
                     </div>
                   </FormControl>
@@ -187,7 +214,7 @@ export default function AccountForm({ user }: AccountFormProps) {
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={form.control}
               name="additionalFollowers"
@@ -198,7 +225,9 @@ export default function AccountForm({ user }: AccountFormProps) {
                     <Input type="number" placeholder="1" {...field} />
                   </FormControl>
                   <FormDescription>
-                    Your current follower count is {initialFollowers}. Your new target will be {form.getValues('followerTarget')}.
+                    Your current follower count is {initialFollowers}. Your new
+                    target will be {form.getValues("followerTarget")}. Amount: ₦
+                    {paymentAmount.toFixed(2)}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -230,11 +259,57 @@ export default function AccountForm({ user }: AccountFormProps) {
               )}
             />
           </CardContent>
-          <CardFooter>
+          <CardFooter className="flex-col sm:flex-row gap-4">
+            <Button
+              type="button"
+              className="w-full sm:w-auto"
+              onClick={() => {
+                if (!form.getValues("name")) {
+                  toast({
+                    variant: "destructive",
+                    title: "Missing Information",
+                    description: "Please enter your Account Name before paying.",
+                  });
+                  return;
+                }
+                 if (paymentAmount <= 0) {
+                  toast({
+                    variant: "destructive",
+                    title: "Invalid Amount",
+                    description: "Number of additional followers must be greater than 0.",
+                  });
+                  return;
+                }
+                handleFlutterwavePayment({
+                  callback: (response) => {
+                    if (response.status === "successful") {
+                      setPaymentSuccessful(true);
+                      toast({
+                        title: "Payment Successful!",
+                        description:
+                          "You can now submit your account details.",
+                      });
+                    } else {
+                      toast({
+                        variant: "destructive",
+                        title: "Payment Failed",
+                        description:
+                          "Your payment was not successful. Please try again.",
+                      });
+                    }
+                    closePaymentModal();
+                  },
+                  onClose: () => {},
+                });
+              }}
+              disabled={paymentSuccessful || isSubmitting}
+            >
+              Pay ₦{paymentAmount.toFixed(2)} with Flutterwave
+            </Button>
             <Button
               type="submit"
               className="w-full sm:w-auto"
-              disabled={isSubmitting}
+              disabled={isSubmitting || !paymentSuccessful}
             >
               {isSubmitting && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -24,8 +24,6 @@ export default function Dashboard({ user }: DashboardProps) {
   const [account, setAccount] = useState<DocumentData | null>(null);
   const [userProfile, setUserProfile] = useState<DocumentData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [onboardingStep, setOnboardingStep] =
-    useState<OnboardingStep>("instructions");
   const [mainView, setMainView] = useState<MainView>("onboarding");
 
   const { toast } = useToast();
@@ -41,7 +39,7 @@ export default function Dashboard({ user }: DashboardProps) {
       if (doc.exists()) {
         const userData = doc.data();
         setUserProfile(userData);
-        if (userData.hasAgreedToTerms && mainView !== 'deposit' && mainView !== 'status') {
+        if (userData.hasAgreedToTerms && mainView === "onboarding") {
           setMainView("form");
         }
       } else {
@@ -58,7 +56,7 @@ export default function Dashboard({ user }: DashboardProps) {
           const accountData = snapshot.docs[0].data();
           accountData.id = snapshot.docs[0].id;
           setAccount(accountData);
-          if (mainView !== 'deposit') {
+          if (mainView !== 'deposit' && mainView !== 'form') {
              setMainView("status");
           }
         } else {
@@ -476,3 +474,5 @@ export default function Dashboard({ user }: DashboardProps) {
     </>
   );
 }
+
+    

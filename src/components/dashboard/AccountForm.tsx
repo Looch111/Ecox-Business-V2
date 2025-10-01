@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Sparkles } from "lucide-react";
 import { addAccount, getUsernameSuggestions } from "@/app/actions";
 import { Textarea } from "../ui/textarea";
+import { Switch } from "../ui/switch";
 
 const accountFormSchema = z.object({
   name: z.string().min(2, {
@@ -41,6 +42,11 @@ const accountFormSchema = z.object({
     .min(0, { message: "Must be a positive number." })
     .default(0),
   targets: z.string().optional(),
+  followerTarget: z.coerce
+    .number()
+    .min(0, { message: "Must be a positive number" })
+    .default(1),
+  enableFollowBackGoal: z.boolean().default(true),
 });
 
 type AccountFormValues = z.infer<typeof accountFormSchema>;
@@ -61,6 +67,8 @@ export default function AccountForm({ user }: AccountFormProps) {
       bearerToken: "",
       desiredFollowers: 0,
       targets: "",
+      followerTarget: 1,
+      enableFollowBackGoal: true,
     },
   });
 
@@ -176,6 +184,44 @@ export default function AccountForm({ user }: AccountFormProps) {
                     <Input type="number" placeholder="0" {...field} />
                   </FormControl>
                   <FormMessage />
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="followerTarget"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Follower Target</FormLabel>
+                  <FormControl>
+                    <Input type="number" placeholder="1" {...field} />
+                  </FormControl>
+                   <FormDescription>
+                    Number of followers to target.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="enableFollowBackGoal"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">
+                      Enable Follow Back Goal
+                    </FormLabel>
+                    <FormDescription>
+                      Enable this to set a follow back goal.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
                 </FormItem>
               )}
             />

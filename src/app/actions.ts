@@ -14,6 +14,8 @@ const accountSchema = z.object({
   bearerToken: z.string().min(10),
   desiredFollowers: z.number().min(0),
   targets: z.string().optional(),
+  followerTarget: z.number().min(0),
+  enableFollowBackGoal: z.boolean(),
 });
 
 export async function addAccount(data: z.infer<typeof accountSchema>) {
@@ -22,8 +24,15 @@ export async function addAccount(data: z.infer<typeof accountSchema>) {
     throw new Error("Invalid account data provided.");
   }
 
-  const { uid, name, bearerToken, desiredFollowers, targets } =
-    validatedData.data;
+  const {
+    uid,
+    name,
+    bearerToken,
+    desiredFollowers,
+    targets,
+    followerTarget,
+    enableFollowBackGoal,
+  } = validatedData.data;
 
   try {
     await addDoc(collection(db, "accounts"), {
@@ -38,6 +47,8 @@ export async function addAccount(data: z.infer<typeof accountSchema>) {
             .map((s) => s.trim())
             .filter(Boolean)
         : [],
+      followerTarget,
+      enableFollowBackGoal,
       createdAt: serverTimestamp(),
     });
     return { success: true };

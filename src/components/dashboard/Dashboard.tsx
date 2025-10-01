@@ -5,7 +5,6 @@ import type { User } from "firebase/auth";
 import { collection, query, where, onSnapshot, DocumentData } from "firebase/firestore";
 import { db, auth, signOut } from "@/lib/firebase";
 import AccountForm from "./AccountForm";
-import AccountView from "./AccountView";
 import { Loader2, LogOut } from "lucide-react";
 import { Button } from "../ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -186,7 +185,7 @@ export default function Dashboard({ user }: DashboardProps) {
               fillRule="evenodd"
               clipRule="evenodd"
               d="M9.44464 19.2705C9.42929 20.3778 10.163 21.1473 11.6457 21.5773C15.372 22.6778 16.6653 24.6126 15.529 27.3852C14.5223 25.5016 13.374 24.2424 12.0824 23.6094C13.3126 24.5188 14.3722 25.7831 15.2611 27.4057C13.7102 27.4859 12.1882 26.9228 11.0604 25.8428C9.37981 24.2339 8.92425 21.4749 9.44464 19.2705Z"
-              fill="url(#paint7_linear_68_64)"
+                fill="url(#paint7_linear_68_64)"
             />{" "}
             <mask
               id="mask1_68_64"
@@ -402,7 +401,7 @@ export default function Dashboard({ user }: DashboardProps) {
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : account ? (
-          <AccountView account={account} user={user} />
+          <AccountForm user={user} />
         ) : (
           renderOnboarding()
         )}
@@ -414,5 +413,3 @@ export default function Dashboard({ user }: DashboardProps) {
     </div>
   );
 }
-
-    

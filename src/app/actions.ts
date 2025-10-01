@@ -13,6 +13,8 @@ import {
   getDoc,
   serverTimestamp,
   setDoc,
+  updateDoc,
+  increment,
 } from "firebase/firestore";
 
 const accountSchema = z.object({
@@ -49,12 +51,33 @@ export async function addAccount(data: z.infer<typeof accountSchema>) {
       followerTarget,
       enableFollowBackGoal,
       initialFollowers,
+      balance: 0,
       createdAt: serverTimestamp(),
     });
     return { success: true };
   } catch (error: any) {
     console.error("Failed to add account:", error);
     throw new Error("Failed to save account to database.");
+  }
+}
+
+export async function addFundsToAccount(uid: string, accountId: string, amount: number) {
+  if (!uid || !accountId || !amount) {
+    throw new Error("User ID, Account ID, and amount are required.");
+  }
+  if (amount <= 0) {
+    throw new Error("Amount must be a positive number.");
+  }
+
+  try {
+    const accountRef = doc(db, "accounts", accountId);
+    await updateDoc(accountRef, {
+      balance: increment(amount),
+    });
+    return { success: true };
+  } catch (error: any) {
+    console.error("Failed to add funds:", error);
+    throw new Error("Could not update account balance.");
   }
 }
 

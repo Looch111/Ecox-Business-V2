@@ -5,11 +5,12 @@ import type { User } from "firebase/auth";
 import { collection, query, where, onSnapshot, DocumentData } from "firebase/firestore";
 import { db, auth, signOut } from "@/lib/firebase";
 import AccountForm from "./AccountForm";
-import { Loader2, LogOut } from "lucide-react";
+import { Loader2, LogOut, Wallet } from "lucide-react";
 import { Button } from "../ui/button";
 import { useToast } from "@/hooks/use-toast";
 import Instructions from "./Instructions";
 import { hasAgreedToTerms } from "@/app/actions";
+import DepositModal from "./DepositModal";
 
 interface DashboardProps {
   user: User;
@@ -22,6 +23,7 @@ export default function Dashboard({ user }: DashboardProps) {
   const [loading, setLoading] = useState(true);
   const [onboardingStep, setOnboardingStep] =
     useState<OnboardingStep>("instructions");
+  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -48,7 +50,6 @@ export default function Dashboard({ user }: DashboardProps) {
           setAccount(accountData);
         } else {
           setAccount(null);
-          // Only check agreement if there's no account yet
           checkAgreement();
         }
         setLoading(false);
@@ -95,8 +96,16 @@ export default function Dashboard({ user }: DashboardProps) {
         return <AccountForm user={user} />;
     }
   };
+  
+  const balance = account?.balance ?? 0;
+  const formattedBalance = new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+  }).format(balance);
+
 
   return (
+    <>
     <div className="w-full max-w-5xl mx-auto flex flex-col min-h-screen p-4 sm:p-6 md:p-8">
       <header className="flex items-center justify-between py-4 px-6 bg-card/80 backdrop-blur-sm rounded-lg shadow-sm mb-8 border sticky top-4 z-10">
         <div className="flex items-center gap-2">
@@ -385,6 +394,17 @@ export default function Dashboard({ user }: DashboardProps) {
           <h1 className="text-xl font-bold font-headline">Ecox User Hub</h1>
         </div>
         <div className="flex items-center gap-4">
+          {account && (
+            <>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Wallet className="h-5 w-5" />
+                <span>{formattedBalance}</span>
+              </div>
+              <Button variant="secondary" size="sm" onClick={() => setIsDepositModalOpen(true)}>
+                Deposit
+              </Button>
+            </>
+          )}
           <span className="text-sm text-muted-foreground hidden sm:inline">
             {user.email}
           </span>
@@ -411,5 +431,14 @@ export default function Dashboard({ user }: DashboardProps) {
         © {new Date().getFullYear()} Ecox. All rights reserved.
       </footer>
     </div>
+    {account && (
+        <DepositModal
+          isOpen={isDepositModalOpen}
+          onClose={() => setIsDepositModalOpen(false)}
+          user={user}
+          accountId={account.id}
+        />
+      )}
+    </>
   );
 }

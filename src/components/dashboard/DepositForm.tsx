@@ -59,7 +59,7 @@ export default function DepositForm({
   const tx_ref = `ecox-deposit-${user.uid}-${Date.now()}`;
 
   const flutterwaveConfig = {
-    public_key: "FLWPUBK_TEST-9972db282f658db461af332dd2e2ca37-X",
+    public_key: process.env.NEXT_PUBLIC_FLUTTERWAVE_PUBLIC_KEY!,
     tx_ref,
     amount,
     currency: "NGN",

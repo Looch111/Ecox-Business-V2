@@ -3,7 +3,7 @@ import { getAuth, signOut } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDlbeO-lWkgVHAckFfNuFr6h8vjFZUMG70",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: "login-and-sign-up-e39e4.firebaseapp.com",
   projectId: "login-and-sign-up-e39e4",
   storageBucket: "login-and-sign-up-e39e4.firebasestorage.app",

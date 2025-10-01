@@ -203,6 +203,7 @@ export default function AccountForm({ user }: AccountFormProps) {
                     <Switch
                       checked={field.value}
                       onCheckedChange={field.onChange}
+                      disabled
                     />
                   </FormControl>
                 </FormItem>

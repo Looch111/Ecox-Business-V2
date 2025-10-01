@@ -79,7 +79,13 @@ export default function AccountForm({ user, balance }: AccountFormProps) {
     name: "followerTarget",
   });
   
+  const initialFollowers = useWatch({
+    control: form.control,
+    name: "initialFollowers",
+  });
+  
   const cost = followerTargetValue * 2.5;
+  const totalFollowers = (initialFollowers || 0) + (followerTargetValue || 0);
 
   useEffect(() => {
     const fetchFollowers = async () => {
@@ -228,8 +234,7 @@ export default function AccountForm({ user, balance }: AccountFormProps) {
                     </FormControl>
                     <FormDescription>
                       Enter the number of new followers you want to gain. Your
-                      current follower count is{" "}
-                      {form.getValues("initialFollowers")}. Cost: ₦{cost.toFixed(2)}
+                      total follower count will be {totalFollowers}. Cost: ₦{cost.toFixed(2)}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

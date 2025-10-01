@@ -42,6 +42,10 @@ const accountFormSchema = z.object({
     message: "Please enter a valid bearer token.",
   }),
   targets: z.string().optional(),
+  additionalFollowers: z.coerce
+    .number()
+    .min(0, { message: "Must be a positive number" })
+    .default(1),
   followerTarget: z.coerce
     .number()
     .min(0, { message: "Must be a positive number" })
@@ -68,6 +72,7 @@ export default function AccountForm({ user }: AccountFormProps) {
       name: "",
       bearerToken: "",
       targets: "",
+      additionalFollowers: 1,
       followerTarget: 1,
       enableFollowBackGoal: true,
       initialFollowers: 0,
@@ -78,6 +83,15 @@ export default function AccountForm({ user }: AccountFormProps) {
     control: form.control,
     name: "bearerToken",
   });
+  const initialFollowers = useWatch({ control: form.control, name: "initialFollowers" });
+  const additionalFollowers = useWatch({ control: form.control, name: "additionalFollowers" });
+
+
+  useEffect(() => {
+    const newFollowerTarget = (initialFollowers || 0) + (additionalFollowers || 0);
+    form.setValue("followerTarget", newFollowerTarget);
+  }, [initialFollowers, additionalFollowers, form]);
+
 
   useEffect(() => {
     const fetchFollowers = async () => {
@@ -214,22 +228,24 @@ export default function AccountForm({ user }: AccountFormProps) {
                 </FormItem>
               )}
             />
+            
             <FormField
               control={form.control}
-              name="followerTarget"
+              name="additionalFollowers"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Follower Target</FormLabel>
+                  <FormLabel>Additional Followers Target</FormLabel>
                   <FormControl>
                     <Input type="number" placeholder="1" {...field} />
                   </FormControl>
                   <FormDescription>
-                    Number of followers to target.
+                    Your current follower count is {initialFollowers}. Your new target will be {form.getValues('followerTarget')}.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
             <FormField
               control={form.control}
               name="enableFollowBackGoal"

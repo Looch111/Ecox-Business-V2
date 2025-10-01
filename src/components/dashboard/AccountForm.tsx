@@ -49,9 +49,10 @@ type AccountFormValues = z.infer<typeof accountFormSchema>;
 interface AccountFormProps {
   user: User;
   balance: number;
+  onShowStatus: () => void;
 }
 
-export default function AccountForm({ user, balance }: AccountFormProps) {
+export default function AccountForm({ user, balance, onShowStatus }: AccountFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFetchingFollowers, setIsFetchingFollowers] = useState(false);
   const [isKiwiGuideOpen, setIsKiwiGuideOpen] = useState(false);
@@ -136,6 +137,7 @@ export default function AccountForm({ user, balance }: AccountFormProps) {
         description: "Your account details have been saved successfully.",
       });
       form.reset();
+      onShowStatus();
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -266,12 +268,21 @@ export default function AccountForm({ user, balance }: AccountFormProps) {
                 )}
               />
             </CardContent>
-            <CardFooter>
+            <CardFooter className="flex-col gap-4 sm:flex-row">
               <Button type="submit" className="w-full" disabled={isSubmitting}>
                 {isSubmitting && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
                 Pay ₦{cost.toFixed(2)}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={onShowStatus}
+                disabled={isSubmitting}
+              >
+                View Submissions
               </Button>
             </CardFooter>
           </form>

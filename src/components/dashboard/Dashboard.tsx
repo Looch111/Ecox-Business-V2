@@ -97,6 +97,10 @@ export default function Dashboard({ user }: DashboardProps) {
   const handleAddNew = () => {
     setMainView("form");
   }
+  
+  const handleShowStatus = () => {
+    setMainView("status");
+  }
 
   const renderContent = () => {
     if (loading) {
@@ -109,9 +113,9 @@ export default function Dashboard({ user }: DashboardProps) {
     
     switch (mainView) {
       case 'deposit':
-        return <DepositForm user={user} onShowForm={() => setMainView('status')} />;
+        return <DepositForm user={user} onShowStatus={handleShowStatus} />;
       case 'form':
-        return <AccountForm user={user} balance={userProfile?.balance || 0} />;
+        return <AccountForm user={user} balance={userProfile?.balance || 0} onShowStatus={handleShowStatus} />;
       case 'status':
          if (accounts.length > 0) {
             return (
@@ -166,8 +170,6 @@ export default function Dashboard({ user }: DashboardProps) {
         });
      }
   }
-  
-  const showBackButton = userProfile?.hasAgreedToTerms && mainView === 'form';
 
   return (
     <>
@@ -483,16 +485,6 @@ export default function Dashboard({ user }: DashboardProps) {
       <main className="flex-grow">
         {renderContent()}
       </main>
-      
-      {showBackButton && (
-        <div className="fixed bottom-8 right-8 z-20">
-           {mainView === 'form' && (
-               <Button size="lg" variant="outline" onClick={() => setMainView('status')}>
-                View Submissions
-              </Button>
-            )}
-        </div>
-      )}
 
       <footer className="text-center py-4 text-sm text-muted-foreground mt-8">
         © {new Date().getFullYear()} Ecox. All rights reserved.

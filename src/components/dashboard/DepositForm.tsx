@@ -38,12 +38,12 @@ type DepositFormValues = z.infer<typeof depositSchema>;
 
 interface DepositFormProps {
   user: User;
-  onShowForm: () => void;
+  onShowStatus: () => void;
 }
 
 export default function DepositForm({
   user,
-  onShowForm,
+  onShowStatus,
 }: DepositFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
@@ -82,14 +82,12 @@ export default function DepositForm({
     setIsSubmitting(true);
     localStorage.setItem(`tx_amount_${tx_ref}`, String(values.amount));
     
-    // Hand off to flutterwave
     handleFlutterwavePayment({
       callback: (response) => {
-        closePaymentModal(); // Close the flutterwave modal
+        closePaymentModal(); 
         setIsSubmitting(false);
-        onShowForm(); // Close our app's deposit form view
+        onShowStatus(); 
         
-        // The redirect_url will handle verification, but we can toast on failure.
         if (response.status !== "successful" && response.status !== "completed") {
             toast({
                 variant: "destructive",
@@ -100,7 +98,7 @@ export default function DepositForm({
       },
       onClose: () => {
         setIsSubmitting(false);
-        onShowForm();
+        onShowStatus();
       },
     });
   }
@@ -130,7 +128,7 @@ export default function DepositForm({
                 )}
               />
             </CardContent>
-            <CardFooter className="flex-col gap-4">
+            <CardFooter className="flex-col gap-4 sm:flex-row">
               <Button
                 type="submit"
                 className="w-full"
@@ -142,11 +140,13 @@ export default function DepositForm({
                 Pay ₦{amount || 0} with Flutterwave
               </Button>
                <Button
+                type="button"
                 variant="outline"
                 className="w-full"
-                onClick={onShowForm}
+                onClick={onShowStatus}
+                disabled={isSubmitting}
               >
-                Back to Account Form
+                Back to Dashboard
               </Button>
             </CardFooter>
           </form>

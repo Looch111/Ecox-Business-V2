@@ -309,7 +309,13 @@ export default function AccountForm({ user }: AccountFormProps) {
                     }
                     closePaymentModal();
                   },
-                  onClose: () => {},
+                  onClose: () => {
+                     toast({
+                        title: "Payment Modal Closed",
+                        description:
+                          "If payment failed, please refresh the page and try again.",
+                      });
+                  },
                 });
               }}
               disabled={paymentSuccessful || isSubmitting}

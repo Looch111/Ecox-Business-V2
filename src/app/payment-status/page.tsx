@@ -41,15 +41,16 @@ function PaymentStatusContent() {
         return;
       }
       
-      if (
-        (paymentStatus !== "successful" && paymentStatus !== "completed") ||
-        !transaction_id ||
-        !tx_ref
-      ) {
+      if (!transaction_id || !tx_ref) {
         setStatus("failed");
         setMessage(
-          "Payment was not successful or is missing required details."
+          "Payment verification failed: Missing transaction details in the URL."
         );
+         toast({
+          variant: "destructive",
+          title: "Verification Error",
+          description: "Could not find transaction ID or reference.",
+        });
         return;
       }
 

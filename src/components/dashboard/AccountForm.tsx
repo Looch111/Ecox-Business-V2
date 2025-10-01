@@ -88,10 +88,10 @@ export default function AccountForm({ user }: AccountFormProps) {
     name: "additionalFollowers",
   });
 
-  const paymentAmount = additionalFollowers * NAIRA_PER_FOLLOWER;
+  const paymentAmount = Number(additionalFollowers) * NAIRA_PER_FOLLOWER;
 
   const flutterwaveConfig = {
-    public_key: process.env.NEXT_PUBLIC_FLUTTERWAVE_PUBLIC_KEY || "FLWPUBK_TEST-9972db282f658db461af332dd2e2ca37-X", // Default to test key
+    public_key: "FLWPUBK_TEST-9972db282f658db461af332dd2e2ca37-X",
     tx_ref: `ecox-${Date.now()}-${user.uid}`,
     amount: paymentAmount,
     currency: "NGN",
@@ -111,7 +111,7 @@ export default function AccountForm({ user }: AccountFormProps) {
 
   useEffect(() => {
     const newFollowerTarget =
-      (initialFollowers || 0) + (additionalFollowers || 0);
+      Number(initialFollowers || 0) + Number(additionalFollowers || 0);
     form.setValue("followerTarget", newFollowerTarget);
   }, [initialFollowers, additionalFollowers, form]);
 

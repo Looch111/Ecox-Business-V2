@@ -6,8 +6,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Loader2, Target, Hash, CheckCircle } from "lucide-react";
+import { Loader2, Target, Hash, CheckCircle, TrendingUp } from "lucide-react";
 import { DocumentData } from "firebase/firestore";
+import { Progress } from "@/components/ui/progress";
 
 interface AccountStatusProps {
   account: DocumentData;
@@ -15,6 +16,12 @@ interface AccountStatusProps {
 
 export default function AccountStatus({ account }: AccountStatusProps) {
   const isCompleted = account.status === 'done';
+  const initialFollowers = account.initialFollowers || 0;
+  const followerTarget = account.followerTarget || 0;
+  const netGained = account.netFollowBacks || 0;
+  
+  const goal = followerTarget - initialFollowers;
+  const progress = goal > 0 ? Math.min((netGained / goal) * 100, 100) : 0;
 
   return (
     <div className="animate-fade-in-up">
@@ -39,21 +46,34 @@ export default function AccountStatus({ account }: AccountStatusProps) {
             )}
           </div>
         </CardHeader>
-        <CardContent className="space-y-3 text-sm">
+        <CardContent className="space-y-4 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground flex items-center gap-2">
                 <Hash className="h-4 w-4" /> Initial Followers
               </span>
-              <span className="font-medium">{account.initialFollowers}</span>
+              <span className="font-medium">{initialFollowers}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground flex items-center gap-2">
                 <Target className="h-4 w-4" /> Follower Target
               </span>
               <span className="font-medium text-green-400">
-                {account.followerTarget}
+                {followerTarget}
               </span>
             </div>
+
+            {!isCompleted && goal > 0 && (
+              <div className="space-y-2 pt-2">
+                <div className="flex items-center justify-between">
+                   <span className="text-muted-foreground flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4" /> Net Gain
+                  </span>
+                  <span className="font-medium">{netGained} / {goal} Followers</span>
+                </div>
+                <Progress value={progress} className="h-2"/>
+              </div>
+            )}
+
           <p className="text-xs text-muted-foreground text-center pt-2">
             {isCompleted 
               ? "This task has been completed successfully."

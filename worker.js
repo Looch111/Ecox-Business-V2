@@ -570,9 +570,10 @@ async function runFollowAndDiscoverLoopForAccount(account) {
 
                     const uid = user.user?.uid;
                     const username = user.user?.username || "N/A";
+                    const isFollowing = user.is_following;
 
-                    if (!uid || follower.is_following || runtime.processedUIDs.has(uid)) {
-                        if (follower.is_following) log('warn', `[${accName}] [SKIP] Already following ${username}`, accName);
+                    if (!uid || isFollowing || runtime.processedUIDs.has(uid)) {
+                        if (isFollowing) log('warn', `[${accName}] [SKIP] Already following ${username}`, accName);
                         if (runtime.processedUIDs.has(uid)) log('warn', `[${accName}] [SKIP] Already processed ${username} in this session`, accName);
                         continue;
                     }
@@ -914,5 +915,3 @@ init().catch(err => {
     log('error', `Fatal Initialization Error: ${err.message}`);
     process.exit(1);
 });
-
-    

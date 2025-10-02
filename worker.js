@@ -33,7 +33,6 @@ let config = {
     pageLimit: 5,
     unfollowWhitelist: ["maidala", "ecox"],
     claimHourUTC: 1,
-    claimMinuteUTC: 0,
     cycleDelayMinutes: 60,
     enableDiscovery: true,
     discoveryRate: 0.1,
@@ -227,10 +226,15 @@ async function followUserFor(account, uid) {
         });
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
+            const errorMessage = errorData.message || 'No details';
+
+            const isAlreadyFollowing = errorMessage.toLowerCase().includes("you are already following this user");
+
             return {
                 success: false,
                 error: `API Error: ${response.status} ${response.statusText}`,
-                details: errorData.message || 'No details'
+                details: errorMessage,
+                isAlreadyFollowing: isAlreadyFollowing,
             };
         }
         return {
@@ -594,7 +598,11 @@ async function runFollowAndDiscoverLoopForAccount(account) {
                             }
                         }
                     } else {
-                        log('error', `[${accName}] [ERROR] Failed to follow ${username}: ${followResponse.details}`, accName);
+                        if (followResponse.isAlreadyFollowing) {
+                            log('warn', `[${accName}] [SKIP] Already following ${username} (confirmed by API).`, accName);
+                        } else {
+                            log('error', `[${accName}] [ERROR] Failed to follow ${username}: ${followResponse.details}`, accName);
+                        }
                     }
 
                     batchCount++;
@@ -915,3 +923,5 @@ init().catch(err => {
     log('error', `Fatal Initialization Error: ${err.message}`);
     process.exit(1);
 });
+
+    

@@ -38,6 +38,7 @@ let config = {
     enableDiscovery: true,
     discoveryRate: 0.1,
     maxDiscoveryQueue: 100,
+    targetType: 'follower', // 'follower', 'following', or 'both'
     accounts: []
 };
 
@@ -110,37 +111,17 @@ async function saveConfigToFirestore() {
     }
 }
 
-async function saveAccountToFirestore(account) {
+async function updateAccountInFirestore(accountId, data) {
+    if (!accountId) return;
     try {
-        const acctCopy = { ...account };
-        delete acctCopy.id;
-        await db.collection('accounts').doc(account.id || undefined).set(acctCopy, {
-            merge: true
-        });
-        log('success', `Account ${account.name} saved to Firestore`, account.name);
-    } catch (err) {
-        log('error', `Failed to save account to Firestore: ${err.message}`, account.name);
+        await db.collection('accounts').doc(accountId).update(data);
+    } catch (error) {
+        log('error', `Failed to update account ${accountId} in Firestore: ${error.message}`);
     }
 }
+
 
 // --- Authenticated fetch wrappers (same as original but with token param) ---
-async function fetchWithAuth(url, options = {}) {
-    const {
-        bearerToken
-    } = config;
-    if (!bearerToken) {
-        throw new Error('Bearer token is not set. Please use the "Edit" menu to add your token or add account tokens to Firestore.');
-    }
-    const headers = {
-        ...options.headers,
-        'Authorization': `Bearer ${bearerToken}`,
-        'Content-Type': 'application/json',
-    };
-    return fetch(url, { ...options,
-        headers
-    });
-}
-
 async function fetchWithAuthFor(account, url, options = {}) {
     const token = (account && account.bearerToken) ? account.bearerToken : config.bearerToken;
     if (!token) {
@@ -370,8 +351,7 @@ async function markAccountAsDone(account) {
         return;
     }
     try {
-        const accountRef = db.collection('accounts').doc(account.id);
-        await accountRef.update({ status: 'done', active: false });
+        await updateAccountInFirestore(account.id, { status: 'done', active: false });
         log('success', `[${account.name}] Marked as 'done' in Firestore.`, account.name);
     } catch (error) {
         log('error', `[${account.name}] Failed to mark account as done in Firestore: ${error.message}`, account.name);
@@ -391,6 +371,7 @@ async function checkFollowBacksAndUnfollowIfComplete(account, runtime) {
         const netGained = currentFollowers - runtime.initialFollowers;
 
         runtime.netFollowBacks = netGained; // Update runtime state
+        await updateAccountInFirestore(account.id, { netFollowBacks: netGained }); // Update Firestore
 
         log('info', `[${accName}] Follower Check: Current: ${currentFollowers}, Initial: ${runtime.initialFollowers}, Net Gained: ${netGained}. Goal: ${targetFollowBacks} net follow-backs.`, accName);
 
@@ -472,38 +453,30 @@ async function runFollowAndDiscoverLoopForAccount(account) {
     } = config;
 
     const followerTarget = account.followerTarget || 0;
-    // Use a new flag, set to true in Firestore on the account to enable this mode.
     const enableGoal = account.enableFollowBackGoal === true && followerTarget > 0;
 
-    // Set initial state for the runtime tracking
     let targetFollowBacks = 0;
 
     if (enableGoal) {
         log('title', `[${accName}] Starting Follow Back Goal Loop`, accName);
-
-        // 1. Initial follower count fetch
         if (!runtime.initialFollowers) {
             log('info', `[${accName}] Fetching initial follower count...`, accName);
             const infoResponse = await fetchAccountInfoFor(account);
             if (infoResponse.success && infoResponse.data.followers_count !== undefined) {
                 runtime.initialFollowers = infoResponse.data.followers_count;
-                targetFollowBacks = followerTarget - runtime.initialFollowers;
-                log('success', `[${accName}] Initial followers: ${runtime.initialFollowers}. Goal: ${targetFollowBacks} net follow-backs.`, accName);
+                 await updateAccountInFirestore(account.id, { initialFollowers: runtime.initialFollowers });
             } else {
                 log('error', `[${accName}] Failed to get initial follower count. Disabling goal. Details: ${infoResponse.details || infoResponse.error}`, accName);
                 account.enableFollowBackGoal = false;
-                // Continue with standard loop if goal tracking fails
             }
-        } else {
-            targetFollowBacks = followerTarget - runtime.initialFollowers;
-            log('title', `[${accName}] Resuming Follow Back Goal Loop. Need ${targetFollowBacks} net follow-backs.`, accName);
         }
+        targetFollowBacks = followerTarget - runtime.initialFollowers;
+        log('success', `[${accName}] Initial followers: ${runtime.initialFollowers}. Goal: ${targetFollowBacks} net follow-backs.`, accName);
 
-        // If the goal is already met before starting/resuming, unfollow and stop.
         if (runtime.initialFollowers > 0 && targetFollowBacks <= 0) {
             log('warn', `[${accName}] Goal already met (${runtime.initialFollowers} >= ${followerTarget}). Initiating selective unfollow and stopping.`, accName);
             await runSelectiveUnfollowPass(account, runtime);
-            await markAccountAsDone(account); // Mark as done in Firestore
+            await markAccountAsDone(account);
             runtime.running = false;
         }
     } else {
@@ -512,7 +485,7 @@ async function runFollowAndDiscoverLoopForAccount(account) {
 
     const followBatch = account.followBatchSize || followBatchSize;
     const followDelaySec = account.followDelay || followDelay;
-
+    
     let mainTargets = (Array.isArray(account.targetUsernames) && account.targetUsernames.length) ? [...account.targetUsernames] : [...config.targetUsernames];
 
     log('info', `[${accName}] Initial Targets: ${mainTargets.join(', ')}`, accName);
@@ -520,7 +493,8 @@ async function runFollowAndDiscoverLoopForAccount(account) {
     log('info', `[${accName}] Batch Size: ${followBatch}, Follow Delay: ${followDelaySec}s`, accName);
 
     runtime.followCount = runtime.followCount || 0;
-    runtime.followHistory = runtime.followHistory || []; // Ensure history is initialized
+    runtime.followHistory = runtime.followHistory || [];
+    runtime.processedUIDs = runtime.processedUIDs || new Set();
 
     while (runtime.running) {
         if (isProcessPaused || runtime.isPaused) {
@@ -529,118 +503,93 @@ async function runFollowAndDiscoverLoopForAccount(account) {
             continue;
         }
 
-        // Check goal before proceeding to new target
-        if (enableGoal && runtime.netFollowBacks >= targetFollowBacks) {
+        if (enableGoal && (runtime.netFollowBacks >= targetFollowBacks)) {
             log('success', `[${accName}] Follow Back Goal Achieved! (${runtime.netFollowBacks} >= ${targetFollowBacks})`, accName);
             await runSelectiveUnfollowPass(account, runtime);
-            await markAccountAsDone(account); // Mark as done in Firestore
-            runtime.running = false; // Stop the loop
+            await markAccountAsDone(account);
+            runtime.running = false;
             break;
         }
 
         let currentTarget = mainTargets.shift() || runtime.discoveredTargets.shift();
-
         if (!currentTarget) {
-            if (config.enableDiscovery && runtime.discoveredTargets.length === 0) {
-                log('warn', `[${accName}] Target queue empty. Waiting 10 minutes...`, accName);
-                await sleep(600);
-                mainTargets = [...config.targetUsernames];
-                continue;
-            } else {
-                log('warn', `[${accName}] Target queue empty. Waiting 60s...`, accName);
-                await sleep(60);
-                continue;
-            }
+            log('warn', `[${accName}] Target queue empty. Waiting for new discovery or config update...`, accName);
+            await sleep(600);
+            mainTargets = (Array.isArray(account.targetUsernames) && account.targetUsernames.length) ? [...account.targetUsernames] : [...config.targetUsernames];
+            continue;
         }
 
         log('title', `[${accName}] Processing target: ${currentTarget}`, accName);
+        
+        let typeToFetch = 'follower';
+        if (config.targetType === 'following') {
+            typeToFetch = 'following';
+        } else if (config.targetType === 'both') {
+            typeToFetch = Math.random() > 0.5 ? 'follower' : 'following';
+        }
+        log('info', `[${accName}] Targeting '${typeToFetch}' list for ${currentTarget}`, accName);
 
         try {
             let offset = 1;
             let continueLooping = true;
-
-            const initialResponse = await fetchUserListFor(account, {
-                username: currentTarget,
-                offset: 1,
-                limit: 1,
-                type: 'follower'
-            });
-            if (!initialResponse.success) {
-                log('error', `[${accName}] Could not get info for target ${currentTarget}. Skipping. Error: ${initialResponse.details}`, accName);
-                continue;
-            }
-            const totalFollowers = initialResponse.total || 0;
-            log('info', `[${accName}] Target user has ${totalFollowers} followers.`, accName);
-
+            
             while (continueLooping && runtime.running) {
                 if (runtime.isPaused || isProcessPaused) {
-                    log('warn', `[${accName}] Paused for claim...`, accName);
+                    log('warn', `[${accName}] Paused during loop...`, accName);
                     await sleep(10);
                     continue;
                 }
 
-                // Check goal before a new API call
-                if (enableGoal && runtime.netFollowBacks >= targetFollowBacks) {
-                    log('success', `[${accName}] Follow Back Goal Achieved! (${runtime.netFollowBacks} >= ${targetFollowBacks})`, accName);
-                    await runSelectiveUnfollowPass(account, runtime);
-                    await markAccountAsDone(account); // Mark as done in Firestore
-                    runtime.running = false;
-                    break;
+                if (enableGoal && (runtime.netFollowBacks >= targetFollowBacks)) {
+                   break;
                 }
 
                 const usersResponse = await fetchUserListFor(account, {
                     username: currentTarget,
                     offset: offset,
                     limit: pageLimit,
-                    type: 'follower'
+                    type: typeToFetch
                 });
 
                 if (!usersResponse.success) {
-                    log('error', `[${accName}] Failed to fetch followers: ${usersResponse.details}. Retrying in 60s.`, accName);
+                    log('error', `[${accName}] Failed to fetch users for ${currentTarget}: ${usersResponse.details}. Retrying in 60s.`, accName);
                     await sleep(60);
                     continue;
                 }
 
-                const followers = usersResponse.data;
-                if (!followers || followers.length === 0) {
-                    log('info', `[${accName}] Finished with target ${currentTarget}. Moving to next target.`, accName);
+                const users = usersResponse.data;
+                if (!users || users.length === 0) {
+                    log('info', `[${accName}] Finished with target ${currentTarget}. Moving to next.`, accName);
                     continueLooping = false;
                     continue;
                 }
 
                 let batchCount = 0;
-                for (const follower of followers) {
+                for (const user of users) {
                     if (!runtime.running) break;
 
-                    const uid = follower.user?.uid;
-                    const username = follower.user?.username || "N/A";
+                    const uid = user.user?.uid;
+                    const username = user.user?.username || "N/A";
 
-                    if (!uid || follower.is_following) {
-                        if (follower.is_following)
-                            log('warn', `[${accName}] [SKIP] Already following ${username}`, accName);
+                    if (!uid || follower.is_following || runtime.processedUIDs.has(uid)) {
+                        if (follower.is_following) log('warn', `[${accName}] [SKIP] Already following ${username}`, accName);
+                        if (runtime.processedUIDs.has(uid)) log('warn', `[${accName}] [SKIP] Already processed ${username} in this session`, accName);
                         continue;
                     }
-
+                    
+                    runtime.processedUIDs.add(uid);
                     log('info', `[${accName}] Attempting to follow user: ${username}`, accName);
                     const followResponse = await followUserFor(account, uid);
 
                     if (followResponse.success) {
-                        runtime.followCount = (runtime.followCount || 0) + 1;
-
-                        // **NEW:** Track history for selective unfollow
-                        runtime.followHistory.push({
-                            uid,
-                            username,
-                            when: Date.now(),
-                            unfollowed: false, // Flag to indicate if we've unfollowed them
-                        });
-
+                        runtime.followCount++;
+                        runtime.followHistory.push({ uid, username, when: Date.now(), unfollowed: false });
                         log('success', `[${accName}] [SUCCESS] Followed ${username} (total follows this run: ${runtime.followCount})`, accName);
 
-                        if (config.enableDiscovery && Math.random() < config.discoveryRate && runtime.discoveredTargets.length < config.maxDiscoveryQueue) {
-                            if (!runtime.discoveredTargets.includes(username) && !config.targetUsernames.includes(username)) {
+                        if (enableDiscovery && Math.random() < discoveryRate && runtime.discoveredTargets.length < maxDiscoveryQueue) {
+                            if (!runtime.discoveredTargets.includes(username) && !mainTargets.includes(username)) {
                                 runtime.discoveredTargets.push(username);
-                                log('info', `[${accName}] [DISCOVERY] Added ${username} to the account queue. Queue size: ${runtime.discoveredTargets.length}`, accName);
+                                log('info', `[${accName}] [DISCOVERY] Added ${username} to queue. Queue size: ${runtime.discoveredTargets.length}`, accName);
                             }
                         }
                     } else {
@@ -651,39 +600,29 @@ async function runFollowAndDiscoverLoopForAccount(account) {
                     await sleep(followDelaySec);
 
                     if (batchCount >= followBatch) {
-                        log('info', `[${accName}] Batch of ${followBatch} completed. Waiting ${config.batchDelay} seconds...`, accName);
-
-                        // **NEW:** Check the goal after a batch
+                        log('info', `[${accName}] Batch of ${followBatch} completed. Waiting ${batchDelay} seconds...`, accName);
                         if (enableGoal) {
                             const goalMet = await checkFollowBacksAndUnfollowIfComplete(account, runtime);
-                            if (goalMet) break; // Break out of the inner loop if goal is met
+                            if (goalMet) break;
                         }
-
-                        await sleep(config.batchDelay);
+                        await sleep(batchDelay);
                         batchCount = 0;
                     }
-
-                    // **OLD LOGIC REMOVED:** Removed the original desiredFollowers check here.
-
-                    if (!runtime.running) break;
-                } // end of for loop
+                }
+                if (enableGoal && (runtime.netFollowBacks >= targetFollowBacks)) break;
                 offset++;
-                if (!runtime.running) continueLooping = false;
-            } // end of inner while loop
+            }
         } catch (error) {
             log('error', `[${accName}] Error processing target ${currentTarget}: ${error.message}`, accName);
-            log('info', `[${accName}] Moving to next target in 60 seconds...`, accName);
             await sleep(60);
         }
     }
-
     log('info', `[${accName}] Follow & Discover loop stopped for account.`, accName);
 }
 
 // --- Unfollow loop for account (Original logic, kept for non-goal-driven use) ---
 async function runUnfollowLoopForAccount(account) {
     const accName = account.name;
-    const runtime = accountRuntimes[accName];
     const {
         unfollowBatchSize,
         batchDelay,
@@ -739,17 +678,13 @@ function ensureAccountRuntimeExists(account) {
         accountRuntimes[account.name] = {
             discoveredTargets: account.discoveredTargets || [],
             followCount: 0,
-            followHistory: [], // Stores { uid, username, when, unfollowed: boolean }
-            initialFollowers: account.initialFollowers || 0, // NEW: Initial follower count
-            netFollowBacks: 0, // NEW: Net followers gained from this script's actions
+            followHistory: [],
+            initialFollowers: account.initialFollowers || 0,
+            netFollowBacks: account.netFollowBacks || 0,
+            processedUIDs: new Set(),
             running: false,
             isPaused: false
         };
-
-        // Warn user if goal is enabled but initial followers not set
-        if (account.enableFollowBackGoal && account.followerTarget && !account.initialFollowers) {
-            log('warn', `[${account.name}] Follow-Back Goal is enabled but initialFollowers is missing. It will be fetched on start.`, account.name);
-        }
     }
 }
 
@@ -762,11 +697,7 @@ function startAccountLoop(account) {
     }
     runtime.running = true;
     runtime.isPaused = false;
-
-    // schedule claim for this account
     scheduleNextClaimCheckForAccount(account);
-
-    // Start the loop but don't await (run in background)
     (async () => {
         try {
             await runFollowAndDiscoverLoopForAccount(account);
@@ -775,7 +706,6 @@ function startAccountLoop(account) {
             runtime.running = false;
         }
     })();
-
     log('success', `Started worker loop for account: ${account.name}`, account.name);
 }
 
@@ -784,13 +714,29 @@ function stopAccountLoop(account) {
     if (!runtime || !runtime.running) return;
     runtime.running = false;
     runtime.isPaused = true;
-    // clear claim timer
     const key = account.id || account.name;
     if (claimTimers[key]) clearTimeout(claimTimers[key]);
     log('warn', `Stopped worker loop for account: ${account.name}`, account.name);
 }
 
-// --- Firestore real-time listener for accounts collection ---
+// --- Firestore real-time listeners ---
+function attachConfigListener() {
+    try {
+        db.collection('config').doc('global').onSnapshot(doc => {
+            if (doc.exists) {
+                const remote = doc.data();
+                config = { ...config, ...remote };
+                log('success', 'Global config updated live from Firestore.');
+            }
+        }, err => {
+            log('error', `Config listener error: ${err.message}`);
+        });
+        log('info', 'Attached Firestore listener to global config.');
+    } catch (err) {
+        log('error', `Failed to attach config listener: ${err.message}`);
+    }
+}
+
 function attachAccountsListener() {
     try {
         const accountsRef = db.collection('accounts');
@@ -798,30 +744,24 @@ function attachAccountsListener() {
             snapshot.docChanges().forEach(change => {
                 const doc = change.doc;
                 const id = doc.id;
-                const data = {
-                    id,
-                    ...doc.data()
-                };
+                const data = { id, ...doc.data() };
+                const idx = config.accounts.findIndex(a => a.id === id);
 
                 if (change.type === 'added') {
                     log('info', `Firestore: account added -> ${data.name}`, data.name);
-                    // add to config.accounts
-                    const idx = config.accounts.findIndex(a => a.id === id);
-                    if (idx === -1) {
-                        config.accounts.push(data);
-                    } else {
-                        config.accounts[idx] = data;
-                    }
-                    if (data.active !== false)
-                        startAccountLoop(data);
-                } else if (change.type === 'modified') {
-                    log('info', `Firestore: account modified -> ${data.name}`, data.name);
-                    const idx = config.accounts.findIndex(a => a.id === id);
                     if (idx === -1) config.accounts.push(data);
                     else config.accounts[idx] = data;
-                    // if modified active
-                    if (data.active === false)
-                        stopAccountLoop(data);
+                    if (data.active !== false) startAccountLoop(data);
+                } else if (change.type === 'modified') {
+                    log('info', `Firestore: account modified -> ${data.name}`, data.name);
+                    if (idx === -1) config.accounts.push(data);
+                    else config.accounts[idx] = data;
+
+                    if (accountRuntimes[data.name]) {
+                        accountRuntimes[data.name].initialFollowers = data.initialFollowers || accountRuntimes[data.name].initialFollowers || 0;
+                    }
+                    
+                    if (data.active === false) stopAccountLoop(data);
                     else startAccountLoop(data);
                 } else if (change.type === 'removed') {
                     log('info', `Firestore: account removed -> ${data.name}`, data.name);
@@ -831,8 +771,6 @@ function attachAccountsListener() {
             });
         }, err => {
             log('error', `Accounts listener error: ${err.message}`);
-            // If onSnapshot fails, we could
-            // fallback to polling - omitted here for brevity.
         });
         log('info', 'Attached Firestore listener to accounts collection.');
     } catch (err) {
@@ -842,105 +780,38 @@ function attachAccountsListener() {
 
 // --- Interactive Settings Edit (uses Firestore save) ---
 async function editSettings() {
-    // Dynamically load inquirer when needed (assuming it's installed)
     if (!inquirer) {
-        try {
-            inquirer = require('inquirer');
-        } catch (e) {
-            log('error', 'The "inquirer" package is required for interactive menus. Please install it (npm install inquirer).', 'system');
+        try { inquirer = require('inquirer'); } catch (e) {
+            log('error', 'The "inquirer" package is required for interactive menus.', 'system');
             return;
         }
     }
 
     console.clear();
-    log('title', '=== Edit Configuration (v2) ===');
+    log('title', '=== Edit Configuration ===');
 
-    const mainChoices = [
-        {
-            name: 'Edit common settings (delays, batch sizes, discovery)',
-            value: 'common'
-        },
-        {
-            name: 'Back',
-            value: 'back'
-        }
-    ];
-
-    const {
-        selection
-    } = await inquirer.prompt([
-        {
-            type: 'list',
-            name: 'selection',
-            message: 'What would you like to edit?',
-            choices: mainChoices
-        }
-    ]);
+    const { selection } = await inquirer.prompt([{
+        type: 'list',
+        name: 'selection',
+        message: 'What would you like to edit?',
+        choices: [
+            { name: 'Edit common settings (delays, batch sizes, discovery)', value: 'common' },
+            { name: 'Back', value: 'back' }
+        ]
+    }]);
 
     if (selection === 'common') {
         const questions = [
-            {
-                type: 'input',
-                name: 'targetUsernames',
-                message: 'Initial Target Usernames (comma-separated):',
-                default: Array.isArray(config.targetUsernames) ? config.targetUsernames.join(',') : ""
-            },
-            {
-                type: 'confirm',
-                name: 'enableDiscovery',
-                message: 'Enable Automatic Target Discovery?',
-                default: config.enableDiscovery
-            },
-            {
-                type: 'number',
-                name: 'discoveryRate',
-                message: 'Discovery Rate (0.0 to 1.0):',
-                default: config.discoveryRate,
-                when: answers => answers.enableDiscovery
-            },
-            {
-                type: 'number',
-                name: 'maxDiscoveryQueue',
-                message: 'Max Discovered Targets:',
-                default: config.maxDiscoveryQueue,
-                when: answers => answers.enableDiscovery
-            },
-            {
-                type: 'number',
-                name: 'claimHourUTC',
-                message: 'Hour for daily claim (UTC, 0-23):',
-                default: config.claimHourUTC
-            },
-            {
-                type: 'number',
-                name: 'claimMinuteUTC',
-                message: 'Minute for daily claim (UTC, 0-59):',
-                default: config.claimMinuteUTC
-            },
-            {
-                type: 'number',
-                name: 'followDelay',
-                message: 'Delay between follows (s):',
-                default: config.followDelay
-            },
-            {
-                type: 'number',
-                name: 'followBatchSize',
-                message: 'Follows per batch:',
-                default: config.followBatchSize
-            },
-            {
-                type: 'number',
-                name: 'batchDelay',
-                message: 'Delay between batches (s):',
-                default: config.batchDelay
-            },
-            {
-                type: 'input',
-                name: 'unfollowWhitelist',
-                message: 'Unfollow Whitelist (comma-separated):',
-                default: config.unfollowWhitelist.join(',')
-            },
+            { type: 'input', name: 'targetUsernames', message: 'Initial Target Usernames (comma-separated):', default: Array.isArray(config.targetUsernames) ? config.targetUsernames.join(',') : "" },
+            { type: 'confirm', name: 'enableDiscovery', message: 'Enable Automatic Target Discovery?', default: config.enableDiscovery },
+            { type: 'number', name: 'discoveryRate', message: 'Discovery Rate (0.0 to 1.0):', default: config.discoveryRate, when: answers => answers.enableDiscovery },
+            { type: 'number', name: 'maxDiscoveryQueue', message: 'Max Discovered Targets:', default: config.maxDiscoveryQueue, when: answers => answers.enableDiscovery },
+            { type: 'list', name: 'targetType', message: 'Target Type:', choices: ['follower', 'following', 'both'], default: config.targetType },
+            { type: 'number', name: 'claimHourUTC', message: 'Hour for daily claim (UTC, 0-23):', default: config.claimHourUTC },
+            { type: 'number', name: 'followDelay', message: 'Delay between follows (s):', default: config.followDelay },
+            { type: 'number', name: 'followBatchSize', message: 'Follows per batch:', default: config.followBatchSize },
+            { type: 'number', name: 'batchDelay', message: 'Delay between batches (s):', default: config.batchDelay },
+            { type: 'input', name: 'unfollowWhitelist', message: 'Unfollow Whitelist (comma-separated):', default: config.unfollowWhitelist.join(',') },
         ];
 
         const answers = await inquirer.prompt(questions);
@@ -962,60 +833,45 @@ async function editSettings() {
 // --- Main Execution & Menus ---
 async function startMultiAccountCycle() {
     if (!Array.isArray(config.accounts) || config.accounts.length === 0) {
-        log('warn', 'No accounts configured. Please add at least one account in Firestore (collection: accounts).');
+        log('warn', 'No accounts configured. Please add at least one account in Firestore.');
         await sleep(2);
         return mainMenu();
     }
-
-    log('title', 'Starting Multi-Account Continuous Follow & Discover Cycle');
-
+    log('title', 'Starting Multi-Account Continuous Cycle');
     const activeAccounts = config.accounts.filter(a => a.active !== false);
-
     for (const account of activeAccounts) {
         startAccountLoop(account);
     }
-    // The loop continues in the background, this function just starts them.
-    log('success', `All ${activeAccounts.length} active accounts are running in the background. Press 'm' to return to the main menu.`);
-
-    // An optional delay before checking for menu input, or setting up a listener.
-    // Assuming the user is running this in a terminal that allows input while background tasks run.
+    log('success', `All ${activeAccounts.length} active accounts are running in the background. Press 'm' to return to the menu.`);
     await sleep(2);
-    // This is where a more complex CLI would typically start listening for a single keypress ('m') to return to a menu.
 }
 
 async function mainMenu() {
-    // Dynamically load inquirer when needed
     if (!inquirer) {
-        try {
-            inquirer = require('inquirer');
-        } catch (e) {
-            log('error', 'The "inquirer" package is required for interactive menus. Please install it (npm install inquirer).', 'system');
+        try { inquirer = require('inquirer'); } catch (e) {
+            log('error', 'The "inquirer" package is required for interactive menus.', 'system');
             return;
         }
     }
 
     console.clear();
-    log('title', '=== ECOX Follower Bot (v2) ===');
+    log('title', '=== ECOX Follower Bot (v3) ===');
     log('info', `Total Accounts Loaded: ${config.accounts.length}`);
     log('info', `Active Workers: ${config.accounts.filter(a => accountRuntimes[a.name] && accountRuntimes[a.name].running).length}`);
     log('info', `Global Discovery: ${config.enableDiscovery ? 'ON' : 'OFF'}`);
 
-    const choices = [
-        { name: 'Start/Resume All Active Account Loops', value: 'start' },
-        { name: 'Stop All Account Loops', value: 'stop' },
-        { name: 'Run Standard Unfollow Pass (All Accounts)', value: 'unfollow' },
-        { name: 'Edit Global Settings (Firestore)', value: 'edit' },
-        { name: 'Exit', value: 'exit' }
-    ];
-
-    const { action } = await inquirer.prompt([
-        {
-            type: 'list',
-            name: 'action',
-            message: 'Select an action:',
-            choices: choices
-        }
-    ]);
+    const { action } = await inquirer.prompt([{
+        type: 'list',
+        name: 'action',
+        message: 'Select an action:',
+        choices: [
+            { name: 'Start/Resume All Active Account Loops', value: 'start' },
+            { name: 'Stop All Account Loops', value: 'stop' },
+            { name: 'Run Standard Unfollow Pass (All Accounts)', value: 'unfollow' },
+            { name: 'Edit Global Settings (Firestore)', value: 'edit' },
+            { name: 'Exit', value: 'exit' }
+        ]
+    }]);
 
     switch (action) {
         case 'start':
@@ -1026,13 +882,8 @@ async function mainMenu() {
             await sleep(1);
             return mainMenu();
         case 'unfollow':
-            log('warn', 'Standard unfollow can be destructive. Consider the goal-based selective unfollow instead.', 'system');
-            const { confirmUnfollow } = await inquirer.prompt([{
-                type: 'confirm',
-                name: 'confirmUnfollow',
-                message: 'Are you sure you want to run the Standard Unfollow Pass on ALL accounts?',
-                default: false
-            }]);
+            log('warn', 'Standard unfollow can be destructive.', 'system');
+            const { confirmUnfollow } = await inquirer.prompt([{ type: 'confirm', name: 'confirmUnfollow', message: 'Are you sure?', default: false }]);
             if (confirmUnfollow) {
                 for (const account of config.accounts.filter(a => a.active !== false)) {
                     await runUnfollowLoopForAccount(account);
@@ -1044,11 +895,9 @@ async function mainMenu() {
             await editSettings();
             break;
         case 'exit':
-            log('title', 'Exiting program. Background loops may stop depending on your environment.', 'system');
+            log('title', 'Exiting program.', 'system');
             config.accounts.forEach(stopAccountLoop);
             process.exit(0);
-        default:
-            return mainMenu();
     }
 }
 
@@ -1056,8 +905,7 @@ async function mainMenu() {
 async function init() {
     log('title', 'Starting ECOX Bot Initializer...');
     await loadConfigFromFirestore();
-
-    // Start listeners and main menu
+    attachConfigListener(); // Attach listener for global config
     attachAccountsListener();
     await mainMenu();
 }

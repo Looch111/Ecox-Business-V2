@@ -304,6 +304,57 @@ async function claimGreenFor(account) {
     }
 }
 
+async function isUserFollowingMe(account, runtime, targetUserUid) {
+    const accName = account.name;
+
+    // Use a cached list of followers if available and not too old
+    const now = Date.now();
+    if (runtime.followersCache && (now - runtime.followersCache.timestamp < 300000)) { // 5 min cache
+        return runtime.followersCache.uids.has(targetUserUid);
+    }
+    
+    log('info', `[${accName}] Refreshing followers list for follow-back check...`, accName);
+    
+    const newFollowersSet = new Set();
+    let offset = 1;
+    const limit = 200; // Fetch in large pages
+    
+    try {
+        while (true) {
+            const followersResponse = await fetchUserListFor(account, {
+                offset,
+                limit,
+                type: 'follower'
+            });
+
+            if (!followersResponse.success || followersResponse.data.length === 0) {
+                break; // Stop if no more followers or error
+            }
+
+            followersResponse.data.forEach(user => {
+                if (user.user?.uid) newFollowersSet.add(user.user.uid);
+            });
+            
+            if (followersResponse.data.length < limit) break; // Last page
+            
+            offset++;
+        }
+        
+        runtime.followersCache = {
+            uids: newFollowersSet,
+            timestamp: Date.now()
+        };
+        log('info', `[${accName}] Follower cache updated with ${newFollowersSet.size} followers.`, accName);
+
+        return newFollowersSet.has(targetUserUid);
+
+    } catch (error) {
+        log('error', `[${accName}] Failed to fetch followers for check: ${error.message}`, accName);
+        return false; // Fail-safe: assume they are not following to avoid unfollowing them
+    }
+}
+
+
 // --- Claim processes (account-scoped) ---
 async function runClaimProcessFor(account) {
     try {
@@ -395,17 +446,17 @@ async function checkFollowBacksAndUnfollowIfComplete(account, runtime) {
 // **NEW:** Function to unfollow ONLY the accounts recorded in followHistory
 async function runSelectiveUnfollowPass(account, runtime) {
     const accName = account.name;
-    const {
-        unfollowBatchSize,
-        batchDelay,
-        unfollowDelay
-    } = config;
+    const { unfollowBatchSize, batchDelay, unfollowDelay } = config;
+    const unfollowNonFollowersOnly = account.unfollowNonFollowersOnly === true;
 
-    log('title', `[${accName}] Starting SELECTIVE Unfollow Pass`, accName);
+    if (unfollowNonFollowersOnly) {
+        log('title', `[${accName}] Starting SELECTIVE Unfollow Pass (Non-Followers Only)`, accName);
+    } else {
+        log('title', `[${accName}] Starting SELECTIVE Unfollow Pass (All History)`, accName);
+    }
 
-    // Filter for users followed by the script that haven't been unfollowed yet
     const usersToUnfollow = runtime.followHistory.filter(f => !f.unfollowed);
-    log('info', `[${accName}] Found ${usersToUnfollow.length} users to unfollow from history.`, accName);
+    log('info', `[${accName}] Found ${usersToUnfollow.length} users to potentially unfollow from history.`, accName);
 
     let batchCount = 0;
     for (const user of usersToUnfollow) {
@@ -415,28 +466,43 @@ async function runSelectiveUnfollowPass(account, runtime) {
             continue;
         }
 
-        log('info', `[${accName}] Attempting to unfollow historical user: ${user.username}`, accName);
-        const unfollowResponse = await unfollowUserFor(account, user.uid);
-
-        if (unfollowResponse.success) {
-            user.unfollowed = true; // Mark as unfollowed in history
-            log('success', `[${accName}] Successfully unfollowed ${user.username}.`, accName);
-        } else {
-            // Log error but continue to next user
-            log('error', `[${accName}] Failed to unfollow ${user.username}: ${unfollowResponse.details}`, accName);
+        let shouldUnfollow = true;
+        if (unfollowNonFollowersOnly) {
+            log('info', `[${accName}] Checking if ${user.username} follows back...`, accName);
+            const isFollowingBack = await isUserFollowingMe(account, runtime, user.uid);
+            if (isFollowingBack) {
+                log('success', `[${accName}] [SKIP] ${user.username} is following back.`, accName);
+                shouldUnfollow = false;
+            } else {
+                log('warn', `[${accName}] ${user.username} is not following back. Proceeding with unfollow.`, accName);
+            }
         }
-
-        await sleep(unfollowDelay);
-        batchCount++;
-
-        if (batchCount >= unfollowBatchSize) {
-            log('info', `[${accName}] Selective Unfollow Batch of ${unfollowBatchSize} completed. Waiting ${batchDelay}s...`, accName);
-            await sleep(batchDelay);
-            batchCount = 0;
+        
+        if (shouldUnfollow) {
+            log('info', `[${accName}] Attempting to unfollow historical user: ${user.username}`, accName);
+            const unfollowResponse = await unfollowUserFor(account, user.uid);
+    
+            if (unfollowResponse.success) {
+                user.unfollowed = true; // Mark as unfollowed in history
+                log('success', `[${accName}] Successfully unfollowed ${user.username}.`, accName);
+            } else {
+                log('error', `[${accName}] Failed to unfollow ${user.username}: ${unfollowResponse.details}`, accName);
+            }
+    
+            await sleep(unfollowDelay);
+            batchCount++;
+    
+            if (batchCount >= unfollowBatchSize) {
+                log('info', `[${accName}] Selective Unfollow Batch of ${unfollowBatchSize} completed. Waiting ${batchDelay}s...`, accName);
+                await sleep(batchDelay);
+                batchCount = 0;
+            }
+        } else {
+            // If we skip, still mark as 'unfollowed' in this pass to not re-check them
+            user.unfollowed = true; 
         }
     }
 
-    // After the pass, clean up the history to only keep failed unfollows (optional, but good for memory)
     runtime.followHistory = runtime.followHistory.filter(f => !f.unfollowed);
     log('info', `[${accName}] Selective Unfollow Pass finished. Remaining history size: ${runtime.followHistory.length}`, accName);
 }
@@ -544,9 +610,7 @@ async function runFollowAndDiscoverLoopForAccount(account) {
                     continue;
                 }
 
-                if (enableGoal && (runtime.netFollowBacks >= targetFollowBacks)) {
-                   break;
-                }
+                if (enableGoal && (runtime.netFollowBacks >= targetFollowBacks)) break;
 
                 const usersResponse = await fetchUserListFor(account, {
                     username: currentTarget,
@@ -692,7 +756,8 @@ function ensureAccountRuntimeExists(account) {
             netFollowBacks: account.netFollowBacks || 0,
             processedUIDs: new Set(),
             running: false,
-            isPaused: false
+            isPaused: false,
+            followersCache: { uids: new Set(), timestamp: 0 },
         };
     }
 }
@@ -923,5 +988,3 @@ init().catch(err => {
     log('error', `Fatal Initialization Error: ${err.message}`);
     process.exit(1);
 });
-
-    

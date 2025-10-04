@@ -1,3 +1,4 @@
+
 "use server";
 
 import { z } from "zod";
@@ -24,6 +25,7 @@ const accountSchema = z.object({
   bearerToken: z.string().min(10),
   followerTarget: z.number().min(0),
   enableFollowBackGoal: z.boolean(),
+  unfollowNonFollowersOnly: z.boolean(),
   initialFollowers: z.number().min(0),
 });
 
@@ -39,6 +41,7 @@ export async function addAccount(data: z.infer<typeof accountSchema>) {
     bearerToken,
     followerTarget,
     enableFollowBackGoal,
+    unfollowNonFollowersOnly,
     initialFollowers,
   } = validatedData.data;
 
@@ -63,6 +66,7 @@ export async function addAccount(data: z.infer<typeof accountSchema>) {
         targetUsernames: [],
         followerTarget: initialFollowers + followerTarget,
         enableFollowBackGoal,
+        unfollowNonFollowersOnly,
         initialFollowers,
         createdAt: serverTimestamp(),
       });

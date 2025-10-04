@@ -42,6 +42,7 @@ const accountFormSchema = z.object({
     .number()
     .min(1, { message: "Target must be at least 1." }),
   enableFollowBackGoal: z.boolean().default(true),
+  unfollowNonFollowersOnly: z.boolean().default(true),
   initialFollowers: z.number().min(0).default(0),
 });
 
@@ -68,6 +69,7 @@ export default function AccountForm({ user, balance, onShowStatus }: AccountForm
       bearerToken: "",
       followerTarget: 1,
       enableFollowBackGoal: true,
+      unfollowNonFollowersOnly: true,
       initialFollowers: 0,
     },
   });
@@ -294,6 +296,28 @@ export default function AccountForm({ user, balance, onShowStatus }: AccountForm
                   </FormItem>
                 )}
               />
+               <FormField
+                control={form.control}
+                name="unfollowNonFollowersOnly"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">
+                        Unfollow Only Non-Followers
+                      </FormLabel>
+                      <FormDescription>
+                        When enabled, the script will only unfollow users who do not follow you back.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
             </CardContent>
             <CardFooter className="flex-col gap-4 sm:flex-row">
               <Button type="submit" className="w-full" disabled={isSubmitting || !canSubmit}>
@@ -323,5 +347,3 @@ export default function AccountForm({ user, balance, onShowStatus }: AccountForm
     </>
   );
 }
-
-    

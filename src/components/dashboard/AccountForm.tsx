@@ -85,7 +85,7 @@ export default function AccountForm({ user, balance, onShowStatus }: AccountForm
     name: "initialFollowers",
   });
   
-  const cost = Number(followerTargetValue) * 2.5;
+  const cost = Number(followerTargetValue) * 2;
   const totalFollowers = (Number(initialFollowers) || 0) + (Number(followerTargetValue) || 0);
 
   useEffect(() => {

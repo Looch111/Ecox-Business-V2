@@ -42,7 +42,7 @@ export async function addAccount(data: z.infer<typeof accountSchema>) {
     initialFollowers,
   } = validatedData.data;
 
-  const cost = followerTarget * 2.5;
+  const cost = followerTarget * 2;
 
   try {
     await runTransaction(db, async (transaction) => {

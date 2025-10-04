@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -55,6 +56,7 @@ interface AccountFormProps {
 export default function AccountForm({ user, balance, onShowStatus }: AccountFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFetchingFollowers, setIsFetchingFollowers] = useState(false);
+  const [isTokenValid, setIsTokenValid] = useState(true);
   const [isKiwiGuideOpen, setIsKiwiGuideOpen] = useState(false);
   const [isTokenGuideOpen, setIsTokenGuideOpen] = useState(false);
   const { toast } = useToast();
@@ -92,23 +94,37 @@ export default function AccountForm({ user, balance, onShowStatus }: AccountForm
     const fetchFollowers = async () => {
       if (bearerTokenValue && bearerTokenValue.length >= 10) {
         setIsFetchingFollowers(true);
+        setIsTokenValid(true); // Assume valid until proven otherwise
+        form.clearErrors("bearerToken");
+
         try {
           const { count } = await getInitialFollowers(bearerTokenValue);
           form.setValue("initialFollowers", count, { shouldValidate: true });
+          setIsTokenValid(true);
           toast({
-            title: "Followers Fetched",
+            title: "Token Verified",
             description: `Initial follower count set to ${count}.`,
           });
         } catch (error: any) {
+          setIsTokenValid(false);
+          form.setValue("initialFollowers", 0);
+          form.setError("bearerToken", {
+            type: "manual",
+            message: "Invalid Bearer Token. Please check and try again.",
+          });
           toast({
             variant: "destructive",
-            title: "Failed to Fetch Followers",
-            description: error.message,
+            title: "Invalid Bearer Token",
+            description: "Could not fetch followers. Please check your token.",
           });
-          form.setValue("initialFollowers", 0);
         } finally {
           setIsFetchingFollowers(false);
         }
+      } else {
+        // Clear status if token is too short or empty
+        setIsTokenValid(true); 
+        form.setValue("initialFollowers", 0);
+        form.clearErrors("bearerToken");
       }
     };
 
@@ -117,6 +133,15 @@ export default function AccountForm({ user, balance, onShowStatus }: AccountForm
   }, [bearerTokenValue, form, toast]);
 
   async function onSubmit(values: AccountFormValues) {
+    if (!isTokenValid) {
+       toast({
+        variant: "destructive",
+        title: "Invalid Token",
+        description: "Please provide a valid bearer token before submitting.",
+      });
+      return;
+    }
+    
     if (balance < cost) {
       toast({
         variant: "destructive",
@@ -148,6 +173,8 @@ export default function AccountForm({ user, balance, onShowStatus }: AccountForm
       setIsSubmitting(false);
     }
   }
+  
+  const canSubmit = isTokenValid && bearerTokenValue.length >= 10 && !isFetchingFollowers;
 
   return (
     <>
@@ -269,7 +296,7 @@ export default function AccountForm({ user, balance, onShowStatus }: AccountForm
               />
             </CardContent>
             <CardFooter className="flex-col gap-4 sm:flex-row">
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
+              <Button type="submit" className="w-full" disabled={isSubmitting || !canSubmit}>
                 {isSubmitting && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
@@ -296,3 +323,5 @@ export default function AccountForm({ user, balance, onShowStatus }: AccountForm
     </>
   );
 }
+
+    

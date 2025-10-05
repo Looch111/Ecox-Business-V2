@@ -4,11 +4,12 @@ import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: "login-and-sign-up-e39e4.firebaseapp.com",
-  projectId: "login-and-sign-up-e39e4",
-  storageBucket: "login-and-sign-up-e39e4.firebasestorage.app",
-  messagingSenderId: "1025789251454",
-  appId: "1:1025789251454:web:ffe54a3db2f480737b6d2f",
+  authDomain: "telegram-mini-app-d28ab.firebaseapp.com",
+  projectId: "telegram-mini-app-d28ab",
+  storageBucket: "telegram-mini-app-d28ab.firebasestorage.app",
+  messagingSenderId: "37701664057",
+  appId: "1:37701664057:web:9bb71dc025d29ec7ce7ce8",
+  measurementId: "G-K2GE50FVMP"
 };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();

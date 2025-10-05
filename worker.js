@@ -882,6 +882,7 @@ async function editSettings() {
             { type: 'number', name: 'maxDiscoveryQueue', message: 'Max Discovered Targets:', default: config.maxDiscoveryQueue, when: answers => answers.enableDiscovery },
             { type: 'list', name: 'targetType', message: 'Target Type:', choices: ['follower', 'following', 'both'], default: config.targetType },
             { type: 'number', name: 'claimHourUTC', message: 'Hour for daily claim (UTC, 0-23):', default: config.claimHourUTC },
+            { type: 'number', name: 'claimMinuteUTC', message: 'Minute for daily claim (UTC, 0-59):', default: config.claimMinuteUTC },
             { type: 'number', name: 'followDelay', message: 'Delay between follows (s):', default: config.followDelay },
             { type: 'number', name: 'followBatchSize', message: 'Follows per batch:', default: config.followBatchSize },
             { type: 'number', name: 'batchDelay', message: 'Delay between batches (s):', default: config.batchDelay },

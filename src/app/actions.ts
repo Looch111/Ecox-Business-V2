@@ -12,6 +12,9 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
+  query,
+  where,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -48,6 +51,15 @@ export async function addAccount(data: z.infer<typeof accountSchema>) {
   const cost = followerTarget * 2;
 
   try {
+    // Check for existing active token before starting transaction
+    const accountsRef = collection(db, "accounts");
+    const q = query(accountsRef, where("bearerToken", "==", bearerToken), where("active", "==", true));
+    const querySnapshot = await getDocs(q);
+    
+    if (!querySnapshot.empty) {
+      throw new Error("This bearer token is already being processed for an active account.");
+    }
+
     await runTransaction(db, async (transaction) => {
       const userRef = doc(db, "users", uid);
       const userDoc = await transaction.get(userRef);

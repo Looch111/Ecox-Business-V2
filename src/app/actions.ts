@@ -48,7 +48,7 @@ export async function addAccount(data: z.infer<typeof accountSchema>) {
     initialFollowers,
   } = validatedData.data;
 
-  const cost = followerTarget * 2;
+  const cost = followerTarget * 1.5;
 
   try {
     // Check for existing active token before starting transaction

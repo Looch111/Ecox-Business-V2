@@ -280,8 +280,7 @@ async function unfollowUserFor(account, uid) {
 async function claimGreenFor(account) {
     try {
         const response = await fetchWithAuthFor(account, `${BASE_URL}/green/claim`, {
-            method: "POST",
-            body: JSON.stringify({}),
+            method: "POST"
         });
         const responseData = await response.json().catch(() => ({}));
         if (!response.ok) {
